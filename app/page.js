@@ -12,13 +12,13 @@ export default function Home() {
         </div>
 
         <div style={{marginBottom:"20px"}}>
-          <label style={{display:"block", fontSize:"11px", fontWeight:"600", color:"#888", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px"}}>Phone number</label>
+          <label style={{display:"block", fontSize:"11px", fontWeight:"600", color:"#888", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px"}}>Client phone number</label>
           <input type="tel" placeholder="201-555-0000" style={{width:"100%", padding:"11px 14px", border:"1px solid #e8e6e0", borderRadius:"10px", fontSize:"14px", color:"#0f1214", boxSizing:"border-box", outline:"none"}}/>
         </div>
 
         <div style={{marginBottom:"20px"}}>
-          <label style={{display:"block", fontSize:"11px", fontWeight:"600", color:"#888", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px"}}>What do they want?</label>
-          <textarea placeholder="e.g. 40 chicken skewers, 10 hummus platters" style={{width:"100%", padding:"11px 14px", border:"1px solid #e8e6e0", borderRadius:"10px", fontSize:"14px", color:"#0f1214", boxSizing:"border-box", outline:"none", height:"100px", resize:"none"}}/>
+          <label style={{display:"block", fontSize:"11px", fontWeight:"600", color:"#888", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px"}}>Delivery address</label>
+          <input type="text" placeholder="Full address" style={{width:"100%", padding:"11px 14px", border:"1px solid #e8e6e0", borderRadius:"10px", fontSize:"14px", color:"#0f1214", boxSizing:"border-box", outline:"none"}}/>
         </div>
 
         <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"20px"}}>
@@ -32,9 +32,14 @@ export default function Home() {
           </div>
         </div>
 
+        <div style={{marginBottom:"20px"}}>
+          <label style={{display:"block", fontSize:"11px", fontWeight:"600", color:"#888", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px"}}>Food for how many people?</label>
+          <input type="number" placeholder="e.g. 25" style={{width:"100%", padding:"11px 14px", border:"1px solid #e8e6e0", borderRadius:"10px", fontSize:"14px", color:"#0f1214", boxSizing:"border-box", outline:"none"}}/>
+        </div>
+
         <div style={{marginBottom:"28px"}}>
-          <label style={{display:"block", fontSize:"11px", fontWeight:"600", color:"#888", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px"}}>Delivery address</label>
-          <input type="text" placeholder="Full address" style={{width:"100%", padding:"11px 14px", border:"1px solid #e8e6e0", borderRadius:"10px", fontSize:"14px", color:"#0f1214", boxSizing:"border-box", outline:"none"}}/>
+          <label style={{display:"block", fontSize:"11px", fontWeight:"600", color:"#888", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px"}}>What do they want?</label>
+          <textarea placeholder="e.g. 40 chicken skewers, 10 hummus platters" style={{width:"100%", padding:"11px 14px", border:"1px solid #e8e6e0", borderRadius:"10px", fontSize:"14px", color:"#0f1214", boxSizing:"border-box", outline:"none", height:"100px", resize:"none"}}/>
         </div>
 
         <button style={{width:"100%", background:"#0f1214", color:"#ffffff", borderRadius:"10px", padding:"15px", fontSize:"15px", fontWeight:"600", border:"none", cursor:"pointer"}}>
