@@ -7,7 +7,7 @@ export async function POST(request) {
 
   const { error } = await resend.emails.send({
     from: 'DR Catering <onboarding@resend.dev>',
-    to: 'psmit4227@gmail.com',
+    to: 'domrizz@gmail.com',
     subject: `New Order — ${order.client_name}`,
     html: `
       <h2>New Order Received</h2>
