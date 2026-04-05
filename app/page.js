@@ -9,7 +9,7 @@ const supabase = createClient(
 
 export default function Home() {
   const [form, setForm] = useState({
-    order_source: '', client_name: '', client_phone: '', client_email: '',
+    client_name: '', client_phone: '', client_email: '',
     point_of_contact: '', event_type: '', delivery_address: '',
     delivery_date: '', delivery_time: '', guest_count: '', order_details: '• '
   });
@@ -58,24 +58,25 @@ export default function Home() {
 
   const reset = () => {
     setForm({
-      order_source: '', client_name: '', client_phone: '', client_email: '',
+      client_name: '', client_phone: '', client_email: '',
       point_of_contact: '', event_type: '', delivery_address: '',
       delivery_date: '', delivery_time: '', guest_count: '', order_details: '• '
     });
     setDone(false);
   };
 
-  const inputStyle = { width:'100%', padding:'11px 14px', border:'1px solid #e8e6e0', borderRadius:'10px', fontSize:'14px', color:'#0f1214', boxSizing:'border-box', outline:'none', fontFamily:'Arial, sans-serif', background:'#fff' };
-  const labelStyle = { display:'block', fontSize:'11px', fontWeight:'600', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px' };
-  const sectionLabel = { fontSize:'12px', fontWeight:'700', color:'#0f1214', textTransform:'uppercase', letterSpacing:'0.08em', margin:'24px 0 14px', paddingBottom:'6px', borderBottom:'2px solid #0f1214', display:'block' };
+  const font = 'Calibri, Arial, sans-serif';
+  const inputStyle = { width:'100%', padding:'11px 14px', border:'1px solid #e8e6e0', borderRadius:'10px', fontSize:'14px', color:'#0f1214', boxSizing:'border-box', outline:'none', fontFamily:font, background:'#fff' };
+  const labelStyle = { display:'block', fontSize:'11px', fontWeight:'600', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px', fontFamily:font };
+  const sectionLabel = { fontSize:'12px', fontWeight:'700', color:'#0f1214', textTransform:'uppercase', letterSpacing:'0.08em', margin:'24px 0 14px', paddingBottom:'6px', borderBottom:'2px solid #0f1214', display:'block', fontFamily:font };
 
   if (done) return (
-    <main style={{minHeight:'100vh', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px', fontFamily:'Arial, sans-serif'}}>
+    <main style={{minHeight:'100vh', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px', fontFamily:font}}>
       <div style={{background:'#ffffff', borderRadius:'16px', border:'1px solid #e8e6e0', width:'100%', maxWidth:'560px', padding:'36px', textAlign:'center'}}>
         <div style={{fontSize:'48px', marginBottom:'16px'}}>✓</div>
-        <h2 style={{fontSize:'22px', fontWeight:'700', color:'#0f1214', margin:'0 0 8px'}}>Order saved</h2>
-        <p style={{fontSize:'14px', color:'#888', margin:'0 0 28px'}}>Order for {form.client_name} has been saved.</p>
-        <button onClick={reset} style={{background:'#0f1214', color:'#fff', borderRadius:'10px', padding:'13px 28px', fontSize:'14px', fontWeight:'600', border:'none', cursor:'pointer'}}>
+        <h2 style={{fontSize:'22px', fontWeight:'700', color:'#0f1214', margin:'0 0 8px', fontFamily:font}}>Order saved</h2>
+        <p style={{fontSize:'14px', color:'#888', margin:'0 0 28px', fontFamily:font}}>Order for {form.client_name} has been saved.</p>
+        <button onClick={reset} style={{background:'#0f1214', color:'#fff', borderRadius:'10px', padding:'13px 28px', fontSize:'14px', fontWeight:'600', border:'none', cursor:'pointer', fontFamily:font}}>
           New order
         </button>
       </div>
@@ -83,31 +84,18 @@ export default function Home() {
   );
 
   return (
-    <main style={{minHeight:'100vh', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px 16px', fontFamily:'Arial, sans-serif'}}>
+    <main style={{minHeight:'100vh', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px 16px', fontFamily:font}}>
       <div style={{background:'#ffffff', borderRadius:'16px', border:'1px solid #e8e6e0', width:'100%', maxWidth:'560px', padding:'36px'}}>
 
         {/* Header */}
         <div style={{textAlign:'center', marginBottom:'28px', paddingBottom:'24px', borderBottom:'1px solid #e8e6e0'}}>
-          <div style={{fontSize:'26px', fontWeight:'700', color:'#0f1214', letterSpacing:'0.02em'}}>
+          <div style={{fontSize:'26px', fontWeight:'700', color:'#0f1214', letterSpacing:'0.02em', fontFamily:font}}>
             DR <span style={{fontWeight:'400'}}>Catering</span>
           </div>
-          <div style={{fontSize:'11px', color:'#aaa', letterSpacing:'0.1em', textTransform:'uppercase', marginTop:'4px'}}>Catering Operating System</div>
+          <div style={{fontSize:'12px', color:'#aaa', letterSpacing:'0.06em', marginTop:'4px', fontFamily:font}}>Catering Operating System</div>
         </div>
 
-        <div style={{fontSize:'18px', fontWeight:'700', color:'#0f1214', marginBottom:'20px'}}>New Order</div>
-
-        {/* Order source */}
-        <div style={{marginBottom:'20px'}}>
-          <label style={labelStyle}>How did this order come in?</label>
-          <select style={inputStyle} value={form.order_source} onChange={e => ff('order_source', e.target.value)}>
-            <option value="">— Select source —</option>
-            <option>Phone</option>
-            <option>Online</option>
-            <option>In-person</option>
-            <option>SMS</option>
-            <option>Email</option>
-          </select>
-        </div>
+        <div style={{fontSize:'18px', fontWeight:'700', color:'#0f1214', marginBottom:'20px', fontFamily:font}}>New Order</div>
 
         {/* Client Details */}
         <span style={sectionLabel}>Client Details</span>
@@ -180,10 +168,10 @@ export default function Home() {
             onChange={handleMenu}
             onKeyDown={handleMenuKey}
           />
-          <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0'}}>Press Enter to add a new item</p>
+          <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0', fontFamily:font}}>Press Enter to add a new item</p>
         </div>
 
-        <button onClick={save} disabled={saving} style={{width:'100%', background: saving ? '#888' : '#0f1214', color:'#ffffff', borderRadius:'10px', padding:'15px', fontSize:'15px', fontWeight:'600', border:'none', cursor: saving ? 'not-allowed' : 'pointer'}}>
+        <button onClick={save} disabled={saving} style={{width:'100%', background: saving ? '#888' : '#0f1214', color:'#ffffff', borderRadius:'10px', padding:'15px', fontSize:'15px', fontWeight:'600', border:'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:font}}>
           {saving ? 'Saving...' : 'Save order'}
         </button>
 
