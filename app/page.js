@@ -13,9 +13,9 @@ export default function Home() {
   const [form, setForm] = useState({
     order_number: genOrderNum(),
     client_name: '', client_phone: '', client_email: '',
-    on_site_contact: '', event_type: '', delivery_address: '',
-    delivery_date: '', delivery_time: '', guest_count: '',
-    order_details: '• ', notes: ''
+    on_site_contact: '', event_type: '', event_type_other: '',
+    delivery_address: '', delivery_date: '', delivery_time: '',
+    guest_count: '', order_details: '• ', notes: ''
   });
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
@@ -74,8 +74,9 @@ export default function Home() {
   };
 
   const handleGuestCount = (val) => {
-    ff('guest_count', val);
-    const nums = val.match(/\d+/g);
+    const cleaned = val.replace(/[^0-9+]/g, '');
+    ff('guest_count', cleaned);
+    const nums = cleaned.match(/\d+/g);
     if (nums) setGuestTotal(nums.reduce((a, b) => parseInt(a) + parseInt(b), 0));
     else setGuestTotal(0);
   };
@@ -95,8 +96,10 @@ export default function Home() {
     if (!form.delivery_date) { alert('Please enter delivery date'); return; }
     if (!form.delivery_address) { alert('Please enter delivery address'); return; }
     if (!form.order_details || form.order_details === '• ') { alert('Please enter the menu'); return; }
+    if (form.event_type === 'Other' && !form.event_type_other) { alert('Please specify the event type'); return; }
     setSaving(true);
-    const orderToSave = { ...form, guest_count: form.guest_count + (guestTotal > 0 ? ` (Total: ${guestTotal})` : '') };
+    const finalEventType = form.event_type === 'Other' ? `Other: ${form.event_type_other}` : form.event_type;
+    const orderToSave = { ...form, event_type: finalEventType, guest_count: form.guest_count + (guestTotal > 0 ? ` (Total: ${guestTotal})` : '') };
     const { error } = await supabase.from('orders').insert([orderToSave]);
     if (error) { alert('Error saving: ' + error.message); setSaving(false); return; }
     await fetch('/api/send-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderToSave) });
@@ -105,7 +108,7 @@ export default function Home() {
   };
 
   const reset = () => {
-    setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', event_type: '', delivery_address: '', delivery_date: '', delivery_time: '', guest_count: '', order_details: '• ', notes: '' });
+    setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', event_type: '', event_type_other: '', delivery_address: '', delivery_date: '', delivery_time: '', guest_count: '', order_details: '• ', notes: '' });
     setDone(false);
     setSuggestions([]);
     setLastOrder(null);
@@ -140,12 +143,10 @@ export default function Home() {
         <div style={{textAlign:'center', marginBottom:'28px', paddingBottom:'24px', borderBottom:'1px solid #e8e6e0'}}>
           <div style={{fontSize:'28px', fontWeight:'700', color:'#0f1214', fontFamily:font}}><strong>DR Catering</strong></div>
           <div style={{fontSize:'12px', color:'#aaa', letterSpacing:'0.05em', marginTop:'6px', fontFamily:font}}>Catering Operating System</div>
+          <div style={{fontSize:'12px', fontWeight:'700', color:'#bbb', marginTop:'6px', fontFamily:font}}>{form.order_number}</div>
         </div>
 
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px'}}>
-          <div style={{fontSize:'20px', fontWeight:'700', color:'#0f1214', fontFamily:font}}>New Order</div>
-          <div style={{fontSize:'12px', fontWeight:'700', color:'#aaa', fontFamily:font}}>{form.order_number}</div>
-        </div>
+        <div style={{fontSize:'20px', fontWeight:'700', color:'#0f1214', fontFamily:font, marginBottom:'24px'}}>New Order</div>
 
         {/* Last order popup */}
         {showLastOrder && (
@@ -210,6 +211,13 @@ export default function Home() {
           </div>
         </div>
 
+        {form.event_type === 'Other' && (
+          <div style={{marginBottom:'18px'}}>
+            <label style={labelStyle}>Please specify event type <span style={required}>*</span></label>
+            <input style={inputStyle} placeholder="Describe the event..." value={form.event_type_other} onChange={e => ff('event_type_other', e.target.value)}/>
+          </div>
+        )}
+
         {/* Delivery Details */}
         <span style={sectionLabel}>Delivery Details</span>
 
@@ -218,20 +226,22 @@ export default function Home() {
           <input style={inputStyle} placeholder="Full address" value={form.delivery_address} onChange={e => ff('delivery_address', e.target.value)}/>
         </div>
 
-        <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap:'16px', marginBottom:'18px'}}>
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'18px'}}>
           <div>
-            <label style={labelStyle}>Date <span style={required}>*</span></label>
+            <label style={labelStyle}>Delivery date <span style={required}>*</span></label>
             <input style={inputStyle} type="date" value={form.delivery_date} onChange={e => ff('delivery_date', e.target.value)}/>
           </div>
           <div>
-            <label style={labelStyle}>Time</label>
+            <label style={labelStyle}>Delivery time</label>
             <input style={inputStyle} type="time" value={form.delivery_time} onChange={e => ff('delivery_time', e.target.value)}/>
           </div>
-          <div style={isMobile ? {gridColumn:'1 / -1'} : {}}>
-            <label style={labelStyle}>Number of guests</label>
-            <input style={inputStyle} type="text" placeholder="39 + 2 vegan + 2 vegetarian" value={form.guest_count} onChange={e => handleGuestCount(e.target.value)}/>
-            {guestTotal > 0 && <p style={{fontSize:'13px', fontWeight:'700', color:'#0f1214', margin:'6px 0 0', fontFamily:font}}>= {guestTotal} total guests</p>}
-          </div>
+        </div>
+
+        <div style={{marginBottom:'18px'}}>
+          <label style={labelStyle}>Number of guests</label>
+          <input style={inputStyle} type="text" placeholder="39 + 2 + 2" value={form.guest_count} onChange={e => handleGuestCount(e.target.value)}/>
+          {guestTotal > 0 && <p style={{fontSize:'13px', fontWeight:'700', color:'#0f1214', margin:'6px 0 0', fontFamily:font}}>= {guestTotal} total guests</p>}
+          <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0', fontFamily:font}}>Only numbers and + allowed</p>
         </div>
 
         {/* Menu */}
