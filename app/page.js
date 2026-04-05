@@ -10,16 +10,32 @@ const supabase = createClient(
 export default function Home() {
   const [form, setForm] = useState({
     client_name: '', client_phone: '', delivery_address: '',
-    delivery_date: '', delivery_time: '', guest_count: '', order_details: ''
+    delivery_date: '', delivery_time: '', guest_count: '', order_details: '• '
   });
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
 
   const ff = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  const handleMenu = (e) => {
+    const val = e.target.value;
+    if (!val.startsWith('• ')) {
+      ff('order_details', '• ' + val.replace(/^•\s?/, ''));
+      return;
+    }
+    ff('order_details', val);
+  };
+
+  const handleMenuKey = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      ff('order_details', form.order_details + '\n• ');
+    }
+  };
+
   const save = async () => {
     if (!form.client_name) { alert('Please enter client name'); return; }
-    if (!form.order_details) { alert('Please enter what they want'); return; }
+    if (!form.order_details || form.order_details === '• ') { alert('Please enter the menu'); return; }
     setSaving(true);
     const { error } = await supabase.from('orders').insert([form]);
     if (error) { alert('Error saving: ' + error.message); setSaving(false); return; }
@@ -34,7 +50,7 @@ export default function Home() {
 
   const reset = () => {
     setForm({ client_name: '', client_phone: '', delivery_address: '',
-      delivery_date: '', delivery_time: '', guest_count: '', order_details: '' });
+      delivery_date: '', delivery_time: '', guest_count: '', order_details: '• ' });
     setDone(false);
   };
 
@@ -92,8 +108,14 @@ export default function Home() {
         </div>
 
         <div style={{marginBottom:'28px'}}>
-          <label style={labelStyle}>What do they want?</label>
-          <textarea style={{...inputStyle, height:'100px', resize:'none'}} placeholder="• Chicken skewers x40&#10;• Hummus platter x10&#10;• Caesar salad x20" value={form.order_details} onChange={e => ff('order_details', e.target.value)}/>
+          <label style={labelStyle}>Menu</label>
+          <textarea
+            style={{...inputStyle, height:'140px', resize:'none', lineHeight:'1.8'}}
+            value={form.order_details}
+            onChange={handleMenu}
+            onKeyDown={handleMenuKey}
+          />
+          <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0'}}>Press Enter to add a new item</p>
         </div>
 
         <button onClick={save} disabled={saving} style={{width:'100%', background: saving ? '#888' : '#0f1214', color:'#ffffff', borderRadius:'10px', padding:'15px', fontSize:'15px', fontWeight:'600', border:'none', cursor: saving ? 'not-allowed' : 'pointer'}}>
