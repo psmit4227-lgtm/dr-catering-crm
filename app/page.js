@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { generateOrderPDF } from './pdf';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -107,6 +108,7 @@ export default function Home() {
     const { error } = await supabase.from('orders').insert([orderToSave]);
     if (error) { alert('Error saving: ' + error.message); setSaving(false); return; }
     await fetch('/api/send-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderToSave) });
+    generateOrderPDF(orderToSave);
     setDone(true);
     setSaving(false);
   };
