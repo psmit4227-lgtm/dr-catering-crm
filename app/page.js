@@ -20,6 +20,7 @@ export default function Home() {
   });
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [savedOrder, setSavedOrder] = useState(null);
   const [pastClients, setPastClients] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [lastOrder, setLastOrder] = useState(null);
@@ -108,7 +109,7 @@ export default function Home() {
     const { error } = await supabase.from('orders').insert([orderToSave]);
     if (error) { alert('Error saving: ' + error.message); setSaving(false); return; }
     await fetch('/api/send-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderToSave) });
-    generateOrderPDF(orderToSave);
+    setSavedOrder(orderToSave);
     setDone(true);
     setSaving(false);
   };
@@ -116,6 +117,7 @@ export default function Home() {
   const reset = () => {
     setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', event_type: '', event_type_other: '', delivery_address: '', delivery_date: '', delivery_time: '', guest_count: '', order_details: '• ', notes: '' });
     setDone(false);
+    setSavedOrder(null);
     setSuggestions([]);
     setLastOrder(null);
     setShowLastOrder(false);
@@ -134,9 +136,12 @@ export default function Home() {
       <div style={{background:'#ffffff', borderRadius:'16px', border:'1px solid #e8e6e0', width:'100%', maxWidth:'600px', margin:'0 auto', padding:'36px', textAlign:'center', boxSizing:'border-box'}}>
         <div style={{fontSize:'48px', marginBottom:'16px'}}>✓</div>
         <h2 style={{fontSize:'22px', fontWeight:'700', color:'#0f1214', margin:'0 0 8px', fontFamily:font}}>Order sent to kitchen</h2>
-        <div style={{display:'inline-block', background:'#f0f0f0', borderRadius:'8px', padding:'6px 16px', fontSize:'13px', fontWeight:'700', color:'#0f1214', marginBottom:'12px', fontFamily:font}}>{form.order_number}</div>
-        <p style={{fontSize:'14px', color:'#888', margin:'0 0 28px', fontFamily:font}}>Order for {form.client_name} has been saved and sent.</p>
-        <button onClick={reset} style={{background:'#0f1214', color:'#fff', borderRadius:'10px', padding:'13px 28px', fontSize:'14px', fontWeight:'600', border:'none', cursor:'pointer', fontFamily:font}}>New order</button>
+        <div style={{display:'inline-block', background:'#f0f0f0', borderRadius:'8px', padding:'6px 16px', fontSize:'13px', fontWeight:'700', color:'#0f1214', marginBottom:'12px', fontFamily:font}}>{savedOrder?.order_number}</div>
+        <p style={{fontSize:'14px', color:'#888', margin:'0 0 28px', fontFamily:font}}>Order for {savedOrder?.client_name} has been saved and sent.</p>
+        <div style={{display:'flex', gap:'12px', justifyContent:'center', flexWrap:'wrap'}}>
+          <button onClick={() => generateOrderPDF(savedOrder)} style={{background:'#fff', color:'#0f1214', borderRadius:'10px', padding:'13px 28px', fontSize:'14px', fontWeight:'600', border:'1px solid #e8e6e0', cursor:'pointer', fontFamily:font}}>Download PDF</button>
+          <button onClick={reset} style={{background:'#0f1214', color:'#fff', borderRadius:'10px', padding:'13px 28px', fontSize:'14px', fontWeight:'600', border:'none', cursor:'pointer', fontFamily:font}}>New order</button>
+        </div>
       </div>
     </main>
   );
@@ -145,7 +150,6 @@ export default function Home() {
     <main style={{minHeight:'100vh', background:'#f9f8f5', padding: isMobile ? '0' : '32px 24px', fontFamily:font, boxSizing:'border-box'}}>
       <div style={{background:'#ffffff', borderRadius: isMobile ? '0' : '16px', border:'1px solid #e8e6e0', width:'100%', maxWidth:'720px', margin:'0 auto', padding: isMobile ? '20px 16px' : '40px 48px', boxSizing:'border-box'}}>
 
-        {/* Header */}
         <div style={{textAlign:'center', marginBottom:'28px', paddingBottom:'24px', borderBottom:'1px solid #e8e6e0'}}>
           <div style={{fontSize:'28px', fontWeight:'700', color:'#0f1214', fontFamily:font}}><strong>DR Catering</strong></div>
           <div style={{fontSize:'12px', color:'#aaa', letterSpacing:'0.05em', marginTop:'6px', fontFamily:font}}>Catering Operating System</div>
@@ -154,7 +158,6 @@ export default function Home() {
 
         <div style={{fontSize:'20px', fontWeight:'700', color:'#0f1214', fontFamily:font, marginBottom:'24px'}}>New Order</div>
 
-        {/* Last order popup */}
         {showLastOrder && (
           <div style={{background:'#fffbeb', border:'1px solid #f59e0b', borderRadius:'12px', padding:'18px', marginBottom:'24px'}}>
             <div style={{fontSize:'13px', fontWeight:'700', color:'#92400e', marginBottom:'8px', fontFamily:font}}>Last order for this client:</div>
@@ -166,7 +169,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Client Details */}
         <span style={sectionLabel}>Client Details</span>
 
         <div style={{marginBottom:'18px', position:'relative'}}>
@@ -224,7 +226,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Delivery Details */}
         <span style={sectionLabel}>Delivery Details</span>
 
         <div style={{marginBottom:'18px'}}>
@@ -250,7 +251,6 @@ export default function Home() {
           <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0', fontFamily:font}}>Use + to separate groups</p>
         </div>
 
-        {/* Menu */}
         <span style={sectionLabel}>Menu <span style={required}>*</span></span>
 
         <div style={{marginBottom:'20px'}}>
@@ -258,7 +258,6 @@ export default function Home() {
           <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0', fontFamily:font}}>Press Enter to add a new item</p>
         </div>
 
-        {/* Notes */}
         <div style={{marginBottom:'32px'}}>
           <label style={labelStyle}>Notes <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
           <textarea style={{...inputStyle, height:'80px', resize:'none'}} placeholder="Gate code, elevator only, call before arriving..." value={form.notes} onChange={e => ff('notes', e.target.value)}/>
