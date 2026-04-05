@@ -24,6 +24,7 @@ export default function Home() {
   const [lastOrder, setLastOrder] = useState(null);
   const [showLastOrder, setShowLastOrder] = useState(false);
   const [width, setWidth] = useState(0);
+  const [guestTotal, setGuestTotal] = useState(0);
 
   useEffect(() => {
     setWidth(window.innerWidth);
@@ -72,6 +73,13 @@ export default function Home() {
     return digits.slice(0,3) + '-' + digits.slice(3,6) + '-' + digits.slice(6);
   };
 
+  const handleGuestCount = (val) => {
+    ff('guest_count', val);
+    const nums = val.match(/\d+/g);
+    if (nums) setGuestTotal(nums.reduce((a, b) => parseInt(a) + parseInt(b), 0));
+    else setGuestTotal(0);
+  };
+
   const handleMenu = (e) => {
     const val = e.target.value;
     if (!val.startsWith('• ')) { ff('order_details', '• ' + val.replace(/^•\s?/, '')); return; }
@@ -88,9 +96,10 @@ export default function Home() {
     if (!form.delivery_address) { alert('Please enter delivery address'); return; }
     if (!form.order_details || form.order_details === '• ') { alert('Please enter the menu'); return; }
     setSaving(true);
-    const { error } = await supabase.from('orders').insert([form]);
+    const orderToSave = { ...form, guest_count: form.guest_count + (guestTotal > 0 ? ` (Total: ${guestTotal})` : '') };
+    const { error } = await supabase.from('orders').insert([orderToSave]);
     if (error) { alert('Error saving: ' + error.message); setSaving(false); return; }
-    await fetch('/api/send-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    await fetch('/api/send-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderToSave) });
     setDone(true);
     setSaving(false);
   };
@@ -101,6 +110,7 @@ export default function Home() {
     setSuggestions([]);
     setLastOrder(null);
     setShowLastOrder(false);
+    setGuestTotal(0);
   };
 
   const isMobile = width < 640;
@@ -169,7 +179,7 @@ export default function Home() {
           )}
         </div>
 
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'18px'}}>
+        <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'16px', marginBottom:'18px'}}>
           <div>
             <label style={labelStyle}>Phone number <span style={required}>*</span></label>
             <input style={inputStyle} type="tel" placeholder="201-555-0000" value={form.client_phone} onChange={e => ff('client_phone', formatPhone(e.target.value))}/>
@@ -180,7 +190,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'18px'}}>
+        <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'16px', marginBottom:'18px'}}>
           <div>
             <label style={labelStyle}>On-site contact <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
             <input style={inputStyle} placeholder="Who will receive the order?" value={form.on_site_contact} onChange={e => ff('on_site_contact', e.target.value)}/>
@@ -208,7 +218,7 @@ export default function Home() {
           <input style={inputStyle} placeholder="Full address" value={form.delivery_address} onChange={e => ff('delivery_address', e.target.value)}/>
         </div>
 
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'16px', marginBottom:'18px'}}>
+        <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap:'16px', marginBottom:'18px'}}>
           <div>
             <label style={labelStyle}>Date <span style={required}>*</span></label>
             <input style={inputStyle} type="date" value={form.delivery_date} onChange={e => ff('delivery_date', e.target.value)}/>
@@ -217,9 +227,10 @@ export default function Home() {
             <label style={labelStyle}>Time</label>
             <input style={inputStyle} type="time" value={form.delivery_time} onChange={e => ff('delivery_time', e.target.value)}/>
           </div>
-          <div>
-            <label style={labelStyle}>How many people?</label>
-            <input style={inputStyle} type="text" placeholder="30 + 4 vegan" value={form.guest_count} onChange={e => ff('guest_count', e.target.value)}/>
+          <div style={isMobile ? {gridColumn:'1 / -1'} : {}}>
+            <label style={labelStyle}>Number of guests</label>
+            <input style={inputStyle} type="text" placeholder="39 + 2 vegan + 2 vegetarian" value={form.guest_count} onChange={e => handleGuestCount(e.target.value)}/>
+            {guestTotal > 0 && <p style={{fontSize:'13px', fontWeight:'700', color:'#0f1214', margin:'6px 0 0', fontFamily:font}}>= {guestTotal} total guests</p>}
           </div>
         </div>
 
