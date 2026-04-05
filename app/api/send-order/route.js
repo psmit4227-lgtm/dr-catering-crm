@@ -1,146 +1,99 @@
 import { Resend } from 'resend';
-import PDFDocument from 'pdfkit';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-function generatePDFBuffer(order) {
-  return new Promise((resolve) => {
-    const doc = new PDFDocument({ margin: 50, size: 'LETTER' });
-    const buffers = [];
-    doc.on('data', chunk => buffers.push(chunk));
-    doc.on('end', () => resolve(Buffer.concat(buffers)));
+const formatDate = (dateStr) => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+};
 
-    const formatDate = (dateStr) => {
-      if (!dateStr) return '—';
-      const d = new Date(dateStr + 'T12:00:00');
-      return d.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-    };
-
-    const formatTime = (timeStr) => {
-      if (!timeStr) return '—';
-      const [h, m] = timeStr.split(':');
-      const hour = parseInt(h);
-      const ampm = hour >= 12 ? 'PM' : 'AM';
-      const hour12 = hour % 12 || 12;
-      return `${hour12}:${m} ${ampm}`;
-    };
-
-    const pageW = 612;
-    const margin = 50;
-
-    // TITLE
-    doc.fontSize(22).font('Helvetica-Bold').text('Event Menu', { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(12).font('Helvetica').text(`Event Menu for ${order.client_name || ''} – ${order.order_number || ''}`, { align: 'center' });
-    doc.moveDown(0.3);
-    doc.text(`Event Held On: ${formatDate(order.delivery_date)}`, { align: 'center' });
-    doc.moveDown(0.5);
-    doc.moveTo(margin, doc.y).lineTo(pageW - margin, doc.y).stroke();
-    doc.moveDown(0.5);
-
-    // LEFT RIGHT INFO
-    const leftX = margin;
-    const rightX = 320;
-    const startY = doc.y;
-
-    doc.fontSize(9).font('Helvetica-Bold').text('POINT OF CONTACT', leftX, startY);
-    doc.fontSize(11).font('Helvetica').text(order.on_site_contact || '—', leftX, doc.y + 2);
-    const afterContact = doc.y + 8;
-
-    doc.fontSize(9).font('Helvetica-Bold').text('PHONE NUMBER', leftX, afterContact);
-    doc.fontSize(11).font('Helvetica').text(order.client_phone || '—', leftX, doc.y + 2);
-    const afterPhone = doc.y + 8;
-
-    doc.fontSize(9).font('Helvetica-Bold').text('DELIVERY ADDRESS', leftX, afterPhone);
-    doc.fontSize(11).font('Helvetica').text(order.delivery_address || '—', leftX, doc.y + 2, { width: 220 });
-    const leftEnd = doc.y;
-
-    doc.fontSize(9).font('Helvetica-Bold').text('NUMBER OF GUESTS', rightX, startY);
-    doc.fontSize(11).font('Helvetica').text(order.guest_count || '—', rightX, startY + 14);
-
-    doc.fontSize(9).font('Helvetica-Bold').text('DELIVERY TIME', rightX, startY + 46);
-    doc.fontSize(11).font('Helvetica').text(formatTime(order.delivery_time), rightX, startY + 60);
-
-    doc.y = Math.max(leftEnd, startY + 90) + 10;
-    doc.moveTo(margin, doc.y).lineTo(pageW - margin, doc.y).stroke();
-    doc.moveDown(0.8);
-
-    // MENU
-    doc.fontSize(13).font('Helvetica-Bold').text('MENU', { align: 'center' });
-    doc.moveDown(0.5);
-    doc.fontSize(11).font('Helvetica');
-
-    const menuItems = (order.order_details || '').split('\n').filter(item => item.trim() && item.trim() !== '•');
-    menuItems.forEach(item => {
-      const clean = item.replace(/^•\s*/, '').trim();
-      if (clean) {
-        doc.text(`• ${clean}`, margin + 10);
-        doc.moveDown(0.3);
-      }
-    });
-
-    doc.moveDown(0.5);
-    doc.moveTo(margin, doc.y).lineTo(pageW - margin, doc.y).stroke();
-    doc.moveDown(0.5);
-
-    // NOTES
-    if (order.notes && order.notes.trim()) {
-      doc.fontSize(9).font('Helvetica-Bold').text('NOTES');
-      doc.fontSize(11).font('Helvetica').text(order.notes);
-      doc.moveDown(0.5);
-      doc.moveTo(margin, doc.y).lineTo(pageW - margin, doc.y).stroke();
-      doc.moveDown(0.5);
-    }
-
-    // DEFAULT
-    doc.fontSize(9).font('Helvetica-Bold').text('DEFAULT');
-    doc.moveDown(0.2);
-    doc.fontSize(11).font('Helvetica');
-    doc.text('• Beverages', margin + 10);
-    doc.moveDown(0.3);
-    doc.text('• Paper Boxes', margin + 10);
-    doc.moveDown(0.8);
-    doc.moveTo(margin, doc.y).lineTo(pageW - margin, doc.y).stroke();
-    doc.moveDown(0.5);
-
-    // FOOTER
-    doc.fontSize(9).font('Helvetica-Oblique').fillColor('gray')
-      .text(`DR Catering — ${order.order_number || ''} — Generated ${new Date().toLocaleDateString('en-US')}`, { align: 'center' });
-
-    doc.end();
-  });
-}
+const formatTime = (timeStr) => {
+  if (!timeStr) return '—';
+  const [h, m] = timeStr.split(':');
+  const hour = parseInt(h);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${m} ${ampm}`;
+};
 
 export async function POST(request) {
   const order = await request.json();
-  const pdfBuffer = await generatePDFBuffer(order);
-  const pdfBase64 = pdfBuffer.toString('base64');
+
+  const menuItems = (order.order_details || '').split('\n')
+    .filter(item => item.trim() && item.trim() !== '•')
+    .map(item => `<li style="padding:6px 0;font-size:15px;">${item.replace(/^•\s*/, '').trim()}</li>`)
+    .join('');
 
   const { error } = await resend.emails.send({
     from: 'DR Catering <onboarding@resend.dev>',
     to: 'psmit4227@gmail.com',
     subject: `New Order — ${order.client_name} (${order.order_number})`,
     html: `
-      <h2 style="font-family:Arial">New Order Received</h2>
-      <table style="font-family:Arial;font-size:14px;width:100%;border-collapse:collapse">
-        <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold">Order Number</td><td style="padding:8px;border:1px solid #eee">${order.order_number}</td></tr>
-        <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold">Client</td><td style="padding:8px;border:1px solid #eee">${order.client_name}</td></tr>
-        <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold">Phone</td><td style="padding:8px;border:1px solid #eee">${order.client_phone}</td></tr>
-        <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold">Address</td><td style="padding:8px;border:1px solid #eee">${order.delivery_address}</td></tr>
-        <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold">Date</td><td style="padding:8px;border:1px solid #eee">${order.delivery_date}</td></tr>
-        <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold">Time</td><td style="padding:8px;border:1px solid #eee">${order.delivery_time}</td></tr>
-        <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold">Guests</td><td style="padding:8px;border:1px solid #eee">${order.guest_count}</td></tr>
-        <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold">Menu</td><td style="padding:8px;border:1px solid #eee">${(order.order_details || '').replace(/\n/g, '<br/>')}</td></tr>
-        ${order.notes ? `<tr><td style="padding:8px;border:1px solid #eee;font-weight:bold">Notes</td><td style="padding:8px;border:1px solid #eee">${order.notes}</td></tr>` : ''}
-      </table>
-      <p style="font-family:Arial;font-size:12px;color:#888;margin-top:24px">PDF attached — DR Catering CRM</p>
-    `,
-    attachments: [
-      {
-        filename: `DR-Catering-${order.order_number}.pdf`,
-        content: pdfBase64,
-      }
-    ]
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  @media print { body { margin: 0; } .no-print { display: none; } }
+  body { font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; color: #111; }
+  h1 { text-align: center; font-size: 24px; margin: 0; }
+  .sub { text-align: center; font-size: 13px; color: #888; margin: 4px 0 2px; }
+  .order-num { text-align: center; font-size: 12px; color: #aaa; margin-bottom: 16px; }
+  .divider { border: none; border-top: 1px solid #ccc; margin: 16px 0; }
+  .two-col { display: table; width: 100%; margin-bottom: 8px; }
+  .col { display: table-cell; width: 50%; vertical-align: top; padding-right: 12px; }
+  .field-label { font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin-bottom: 3px; }
+  .field-value { font-size: 14px; margin-bottom: 14px; }
+  .menu-title { text-align: center; font-size: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.08em; margin: 16px 0 8px; }
+  ul { margin: 0; padding-left: 20px; }
+  .default-section { margin-top: 16px; }
+  .default-label { font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; color: #888; }
+  .footer { text-align: center; font-size: 10px; color: #aaa; margin-top: 20px; font-style: italic; }
+</style>
+</head>
+<body>
+  <h1>Event Menu</h1>
+  <p class="sub">Event Menu for ${order.client_name} – ${order.order_number}</p>
+  <p class="sub">Event Held On: ${formatDate(order.delivery_date)}</p>
+  <hr class="divider"/>
+
+  <div class="two-col">
+    <div class="col">
+      <div class="field-label">Point of Contact</div>
+      <div class="field-value">${order.on_site_contact || '—'}</div>
+      <div class="field-label">Phone Number</div>
+      <div class="field-value">${order.client_phone || '—'}</div>
+      <div class="field-label">Delivery Address</div>
+      <div class="field-value">${order.delivery_address || '—'}</div>
+    </div>
+    <div class="col">
+      <div class="field-label">Number of Guests</div>
+      <div class="field-value">${order.guest_count || '—'}</div>
+      <div class="field-label">Delivery Time</div>
+      <div class="field-value">${formatTime(order.delivery_time)}</div>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+  <div class="menu-title">Menu</div>
+  <ul>${menuItems}</ul>
+
+  ${order.notes ? `<hr class="divider"/><div class="field-label">Notes</div><div class="field-value">${order.notes}</div>` : ''}
+
+  <hr class="divider"/>
+  <div class="default-section">
+    <div class="default-label">Default</div>
+    <ul>
+      <li style="padding:6px 0;font-size:15px;">Beverages</li>
+      <li style="padding:6px 0;font-size:15px;">Paper Boxes</li>
+    </ul>
+  </div>
+
+  <hr class="divider"/>
+  <p class="footer">DR Catering — ${order.order_number} — Generated ${new Date().toLocaleDateString('en-US')}</p>
+</body>
+</html>
+    `
   });
 
   if (error) return Response.json({ error }, { status: 500 });
