@@ -1,119 +1,176 @@
-import jsPDF from 'jspdf';
-
-function buildPDF(order) {
-  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
-  const pageW = 612;
-  const margin = 48;
-  let y = 48;
-
-  const line = (yPos) => {
-    doc.setDrawColor(0);
-    doc.setLineWidth(0.5);
-    doc.line(margin, yPos, pageW - margin, yPos);
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
-    const d = new Date(dateStr + 'T12:00:00');
-    return d.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-  };
-
-  const formatTime = (timeStr) => {
-    if (!timeStr) return '—';
-    const [h, m] = timeStr.split(':');
-    const hour = parseInt(h);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour % 12 || 12;
-    return `${hour12}:${m} ${ampm}`;
-  };
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.text('Event Menu', pageW / 2, y, { align: 'center' });
-  y += 28;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(12);
-  doc.text(`Event Menu for ${order.client_name || ''} – ${order.order_number || ''}`, pageW / 2, y, { align: 'center' });
-  y += 20;
-  doc.text(`Event Held On: ${formatDate(order.delivery_date)}`, pageW / 2, y, { align: 'center' });
-  y += 28;
-
-  line(y); y += 20;
-
-  const leftX = margin;
-  const rightX = pageW / 2 + 20;
-
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-  doc.text('POINT OF CONTACT', leftX, y);
-  doc.text('NUMBER OF GUESTS', rightX, y); y += 14;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
-  doc.text(order.on_site_contact || '—', leftX, y);
-  doc.text(order.guest_count || '—', rightX, y); y += 18;
-
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-  doc.text('PHONE NUMBER', leftX, y);
-  doc.text('DELIVERY TIME', rightX, y); y += 14;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
-  doc.text(order.client_phone || '—', leftX, y);
-  doc.text(formatTime(order.delivery_time), rightX, y); y += 18;
-
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-  doc.text('DELIVERY ADDRESS', leftX, y); y += 14;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
-  const addrLines = doc.splitTextToSize(order.delivery_address || '—', (pageW / 2) - 20);
-  doc.text(addrLines, leftX, y);
-  y += addrLines.length * 14 + 10;
-
-  line(y); y += 24;
-
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-  doc.text('MENU', pageW / 2, y, { align: 'center' }); y += 20;
-
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
-  const menuItems = (order.order_details || '').split('\n').filter(i => i.trim() && i.trim() !== '•');
-  menuItems.forEach(item => {
-    const clean = item.replace(/^•\s*/, '').trim();
-    if (clean) {
-      const lines = doc.splitTextToSize(`• ${clean}`, pageW - margin * 2 - 10);
-      doc.text(lines, margin + 10, y);
-      y += lines.length * 16;
-    }
-  });
-
-  y += 16; line(y); y += 20;
-
-  if (order.notes && order.notes.trim()) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-    doc.text('NOTES', leftX, y); y += 14;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
-    const noteLines = doc.splitTextToSize(order.notes, pageW - margin * 2);
-    doc.text(noteLines, leftX, y);
-    y += noteLines.length * 14 + 16;
-    line(y); y += 20;
-  }
-
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-  doc.text('DEFAULT', leftX, y); y += 14;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
-  doc.text('• Beverages', leftX + 10, y); y += 16;
-  doc.text('• Paper Boxes', leftX + 10, y); y += 24;
-
-  line(y); y += 16;
-
-  doc.setFont('helvetica', 'italic'); doc.setFontSize(9);
-  doc.setTextColor(150);
-  doc.text(`DR Catering — ${order.order_number || ''} — Generated ${new Date().toLocaleDateString('en-US')}`, pageW / 2, y, { align: 'center' });
-
-  return doc;
-}
+import jsPDF from "jspdf";
 
 export function generateOrderPDF(order) {
-  const doc = buildPDF(order);
-  return doc.output('datauristring').split(',')[1];
-}
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 20;
+  const contentWidth = pageWidth - margin * 2;
+  let y = margin;
 
-export function downloadOrderPDF(order) {
-  const doc = buildPDF(order);
-  doc.save(`DR-Catering-${order.order_number || 'Order'}.pdf`);
+  const navy = [30, 58, 95];
+  const gold = [200, 160, 60];
+  const dark = [40, 40, 40];
+  const gray = [120, 120, 120];
+  const lineGray = [200, 200, 200];
+
+  doc.setFillColor(...gold);
+  doc.rect(0, 0, pageWidth, 4, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(22);
+  doc.setTextColor(...navy);
+  doc.text("DR CATERING", margin, y + 14);
+
+  doc.setFontSize(11);
+  doc.setTextColor(...gray);
+  doc.text("ORDER CONFIRMATION", pageWidth - margin, y + 8, { align: "right" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.setTextColor(...navy);
+  doc.text(order.orderNumber || "ORD-0000", pageWidth - margin, y + 15, { align: "right" });
+
+  y += 24;
+  doc.setDrawColor(...lineGray);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 8;
+
+  const colRight = pageWidth / 2 + 5;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...gold);
+  doc.text("CUSTOMER", margin, y);
+  y += 5;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...dark);
+  doc.text(order.customerName || "—", margin, y);
+  y += 5;
+  doc.setTextColor(...gray);
+  doc.setFontSize(9);
+  if (order.customerPhone) { doc.text(order.customerPhone, margin, y); y += 4; }
+  if (order.customerEmail) { doc.text(order.customerEmail, margin, y); }
+
+  let yRight = y - (order.customerPhone ? 14 : 10);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...gold);
+  doc.text("EVENT DETAILS", colRight, yRight);
+  yRight += 5;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...dark);
+  [
+    order.eventDate && `Date: ${order.eventDate}`,
+    order.eventTime && `Time: ${order.eventTime}`,
+    order.eventLocation && `Location: ${order.eventLocation}`,
+    order.guestCount && `Guests: ${order.guestCount}`,
+  ].filter(Boolean).forEach((line) => {
+    doc.text(line, colRight, yRight);
+    yRight += 5;
+  });
+
+  y = Math.max(y, yRight) + 6;
+  doc.setDrawColor(...lineGray);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 8;
+
+  const colItem = margin;
+  const colQty = margin + contentWidth * 0.55;
+  const colPrice = margin + contentWidth * 0.72;
+  const colTotal = pageWidth - margin;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...navy);
+  doc.text("ITEM", colItem, y);
+  doc.text("QTY", colQty, y);
+  doc.text("PRICE", colPrice, y);
+  doc.text("TOTAL", colTotal, y, { align: "right" });
+  y += 3;
+  doc.setDrawColor(...navy);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 5;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  let subtotal = 0;
+
+  (order.items || []).forEach((item, i) => {
+    const lineTotal = (item.qty || 0) * (item.unitPrice || 0);
+    subtotal += lineTotal;
+
+    if (i % 2 === 0) {
+      doc.setFillColor(245, 245, 250);
+      doc.rect(margin, y - 4, contentWidth, 7, "F");
+    }
+
+    doc.setTextColor(...dark);
+    doc.text(item.name || "—", colItem, y);
+    doc.text(String(item.qty || 0), colQty, y);
+    doc.text(`$${(item.unitPrice || 0).toFixed(2)}`, colPrice, y);
+    doc.text(`$${lineTotal.toFixed(2)}`, colTotal, y, { align: "right" });
+    y += 7;
+
+    if (y > 250) { doc.addPage(); y = margin; }
+  });
+
+  y += 3;
+  doc.setDrawColor(...lineGray);
+  doc.line(colPrice - 5, y, pageWidth - margin, y);
+  y += 6;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...gray);
+  doc.text("Subtotal", colPrice - 5, y);
+  doc.text(`$${subtotal.toFixed(2)}`, colTotal, y, { align: "right" });
+  y += 6;
+
+  const tax = subtotal * 0.06625;
+  doc.text("Tax (6.625%)", colPrice - 5, y);
+  doc.text(`$${tax.toFixed(2)}`, colTotal, y, { align: "right" });
+  y += 6;
+
+  doc.setDrawColor(...navy);
+  doc.setLineWidth(0.5);
+  doc.line(colPrice - 5, y, pageWidth - margin, y);
+  y += 7;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.setTextColor(...navy);
+  doc.text("TOTAL DUE", colPrice - 5, y);
+  doc.text(`$${(subtotal + tax).toFixed(2)}`, colTotal, y, { align: "right" });
+  y += 12;
+
+  if (order.notes) {
+    doc.setDrawColor(...lineGray);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 7;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...gold);
+    doc.text("SPECIAL INSTRUCTIONS", margin, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(...dark);
+    doc.text(doc.splitTextToSize(order.notes, contentWidth), margin, y);
+  }
+
+  const footerY = doc.internal.pageSize.getHeight() - 15;
+  doc.setFillColor(...gold);
+  doc.rect(0, doc.internal.pageSize.getHeight() - 4, pageWidth, 4, "F");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...gray);
+  doc.text("DR Catering — Thank you for your business!", pageWidth / 2, footerY, { align: "center" });
+
+  return doc.output("datauristring");
 }
