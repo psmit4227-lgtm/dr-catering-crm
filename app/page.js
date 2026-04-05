@@ -74,11 +74,15 @@ export default function Home() {
   };
 
   const handleGuestCount = (val) => {
-    const cleaned = val.replace(/[^0-9+]/g, '');
+    const cleaned = val.replace(/[^0-9+a-zA-Z ]/g, '');
     ff('guest_count', cleaned);
-    const nums = cleaned.match(/\d+/g);
-    if (nums) setGuestTotal(nums.reduce((a, b) => parseInt(a) + parseInt(b), 0));
-    else setGuestTotal(0);
+    const segments = cleaned.split('+');
+    let total = 0;
+    segments.forEach(seg => {
+      const num = seg.trim().match(/^\d+/);
+      if (num) total += parseInt(num[0]);
+    });
+    setGuestTotal(total);
   };
 
   const handleMenu = (e) => {
@@ -239,9 +243,9 @@ export default function Home() {
 
         <div style={{marginBottom:'18px'}}>
           <label style={labelStyle}>Number of guests</label>
-          <input style={inputStyle} type="text" placeholder="39 + 2 + 2" value={form.guest_count} onChange={e => handleGuestCount(e.target.value)}/>
+          <input style={inputStyle} type="text" placeholder="40 + 6 vegetarian + 3 gluten free" value={form.guest_count} onChange={e => handleGuestCount(e.target.value)}/>
           {guestTotal > 0 && <p style={{fontSize:'13px', fontWeight:'700', color:'#0f1214', margin:'6px 0 0', fontFamily:font}}>= {guestTotal} total guests</p>}
-          <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0', fontFamily:font}}>Only numbers and + allowed</p>
+          <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0', fontFamily:font}}>Use + to separate groups</p>
         </div>
 
         {/* Menu */}
