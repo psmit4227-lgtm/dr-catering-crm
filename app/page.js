@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -7,16 +7,52 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+const genOrderNum = () => 'DRC-' + String(Math.floor(Math.random() * 9000) + 1000);
+
 export default function Home() {
   const [form, setForm] = useState({
+    order_number: genOrderNum(),
     client_name: '', client_phone: '', client_email: '',
-    point_of_contact: '', event_type: '', delivery_address: '',
-    delivery_date: '', delivery_time: '', guest_count: '', order_details: '• '
+    on_site_contact: '', event_type: '', delivery_address: '',
+    delivery_date: '', delivery_time: '', guest_count: '',
+    order_details: '• ', notes: ''
   });
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [pastClients, setPastClients] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+
+  useEffect(() => {
+    supabase.from('orders').select('client_name, client_phone, client_email').then(({ data }) => {
+      if (data) {
+        const unique = [];
+        const seen = new Set();
+        data.forEach(d => {
+          if (d.client_name && !seen.has(d.client_name)) {
+            seen.add(d.client_name);
+            unique.push(d);
+          }
+        });
+        setPastClients(unique);
+      }
+    });
+  }, []);
 
   const ff = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleNameChange = (val) => {
+    ff('client_name', val);
+    if (val.length > 1) {
+      setSuggestions(pastClients.filter(c => c.client_name.toLowerCase().startsWith(val.toLowerCase())).slice(0, 4));
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const selectSuggestion = (client) => {
+    setForm(f => ({ ...f, client_name: client.client_name, client_phone: client.client_phone || '', client_email: client.client_email || '' }));
+    setSuggestions([]);
+  };
 
   const formatPhone = (val) => {
     const digits = val.replace(/\D/g, '').slice(0, 10);
@@ -27,22 +63,18 @@ export default function Home() {
 
   const handleMenu = (e) => {
     const val = e.target.value;
-    if (!val.startsWith('• ')) {
-      ff('order_details', '• ' + val.replace(/^•\s?/, ''));
-      return;
-    }
+    if (!val.startsWith('• ')) { ff('order_details', '• ' + val.replace(/^•\s?/, '')); return; }
     ff('order_details', val);
   };
 
   const handleMenuKey = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      ff('order_details', form.order_details + '\n• ');
-    }
+    if (e.key === 'Enter') { e.preventDefault(); ff('order_details', form.order_details + '\n• '); }
   };
 
   const save = async () => {
     if (!form.client_name) { alert('Please enter client name'); return; }
+    if (!form.delivery_date) { alert('Please enter delivery date'); return; }
+    if (!form.delivery_address) { alert('Please enter delivery address'); return; }
     if (!form.order_details || form.order_details === '• ') { alert('Please enter the menu'); return; }
     setSaving(true);
     const { error } = await supabase.from('orders').insert([form]);
@@ -58,23 +90,28 @@ export default function Home() {
 
   const reset = () => {
     setForm({
+      order_number: genOrderNum(),
       client_name: '', client_phone: '', client_email: '',
-      point_of_contact: '', event_type: '', delivery_address: '',
-      delivery_date: '', delivery_time: '', guest_count: '', order_details: '• '
+      on_site_contact: '', event_type: '', delivery_address: '',
+      delivery_date: '', delivery_time: '', guest_count: '',
+      order_details: '• ', notes: ''
     });
     setDone(false);
+    setSuggestions([]);
   };
 
   const font = 'Calibri, Arial, sans-serif';
   const inputStyle = { width:'100%', padding:'11px 14px', border:'1px solid #e8e6e0', borderRadius:'10px', fontSize:'14px', color:'#0f1214', boxSizing:'border-box', outline:'none', fontFamily:font, background:'#fff' };
   const labelStyle = { display:'block', fontSize:'11px', fontWeight:'600', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px', fontFamily:font };
   const sectionLabel = { fontSize:'12px', fontWeight:'700', color:'#0f1214', textTransform:'uppercase', letterSpacing:'0.08em', margin:'24px 0 14px', paddingBottom:'6px', borderBottom:'2px solid #0f1214', display:'block', fontFamily:font };
+  const required = { color:'#e53e3e', marginLeft:'3px' };
 
   if (done) return (
     <main style={{minHeight:'100vh', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px', fontFamily:font}}>
       <div style={{background:'#ffffff', borderRadius:'16px', border:'1px solid #e8e6e0', width:'100%', maxWidth:'560px', padding:'36px', textAlign:'center'}}>
         <div style={{fontSize:'48px', marginBottom:'16px'}}>✓</div>
         <h2 style={{fontSize:'22px', fontWeight:'700', color:'#0f1214', margin:'0 0 8px', fontFamily:font}}>Order saved</h2>
+        <div style={{display:'inline-block', background:'#f0f0f0', borderRadius:'8px', padding:'6px 16px', fontSize:'13px', fontWeight:'700', color:'#0f1214', marginBottom:'12px', fontFamily:font}}>{form.order_number}</div>
         <p style={{fontSize:'14px', color:'#888', margin:'0 0 28px', fontFamily:font}}>Order for {form.client_name} has been saved.</p>
         <button onClick={reset} style={{background:'#0f1214', color:'#fff', borderRadius:'10px', padding:'13px 28px', fontSize:'14px', fontWeight:'600', border:'none', cursor:'pointer', fontFamily:font}}>
           New order
@@ -90,34 +127,48 @@ export default function Home() {
         {/* Header */}
         <div style={{textAlign:'center', marginBottom:'28px', paddingBottom:'24px', borderBottom:'1px solid #e8e6e0'}}>
           <div style={{fontSize:'26px', fontWeight:'700', color:'#0f1214', letterSpacing:'0.02em', fontFamily:font}}>
-            DR <span style={{fontWeight:'400'}}>Catering</span>
+            <strong>DR Catering</strong>
           </div>
           <div style={{fontSize:'12px', color:'#aaa', letterSpacing:'0.06em', marginTop:'4px', fontFamily:font}}>Catering Operating System</div>
         </div>
 
-        <div style={{fontSize:'18px', fontWeight:'700', color:'#0f1214', marginBottom:'20px', fontFamily:font}}>New Order</div>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
+          <div style={{fontSize:'18px', fontWeight:'700', color:'#0f1214', fontFamily:font}}>New Order</div>
+          <div style={{fontSize:'12px', fontWeight:'700', color:'#888', fontFamily:font}}>{form.order_number}</div>
+        </div>
 
         {/* Client Details */}
         <span style={sectionLabel}>Client Details</span>
 
-        <div style={{marginBottom:'16px'}}>
-          <label style={labelStyle}>Client name</label>
-          <input style={inputStyle} placeholder="Sarah Johnson" value={form.client_name} onChange={e => ff('client_name', e.target.value)}/>
+        <div style={{marginBottom:'16px', position:'relative'}}>
+          <label style={labelStyle}>Client name <span style={required}>*</span></label>
+          <input style={inputStyle} placeholder="Sarah Johnson" value={form.client_name} onChange={e => handleNameChange(e.target.value)}/>
+          {suggestions.length > 0 && (
+            <div style={{position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1px solid #e8e6e0', borderRadius:'10px', zIndex:10, marginTop:'4px', overflow:'hidden'}}>
+              {suggestions.map((c, i) => (
+                <div key={i} onClick={() => selectSuggestion(c)} style={{padding:'10px 14px', fontSize:'14px', cursor:'pointer', borderBottom:'1px solid #f5f4f0', fontFamily:font, color:'#0f1214'}}
+                  onMouseEnter={e => e.target.style.background='#f9f8f5'}
+                  onMouseLeave={e => e.target.style.background='#fff'}>
+                  {c.client_name}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={{marginBottom:'16px'}}>
-          <label style={labelStyle}>Phone number</label>
+          <label style={labelStyle}>Phone number <span style={required}>*</span></label>
           <input style={inputStyle} type="tel" placeholder="201-555-0000" value={form.client_phone} onChange={e => ff('client_phone', formatPhone(e.target.value))}/>
         </div>
 
         <div style={{marginBottom:'16px'}}>
-          <label style={labelStyle}>Email address</label>
+          <label style={labelStyle}>Email address <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400'}}>(optional)</span></label>
           <input style={inputStyle} type="email" placeholder="sarah@company.com" value={form.client_email} onChange={e => ff('client_email', e.target.value)}/>
         </div>
 
         <div style={{marginBottom:'16px'}}>
-          <label style={labelStyle}>Point of contact at delivery</label>
-          <input style={inputStyle} placeholder="Who will be there to receive the order?" value={form.point_of_contact} onChange={e => ff('point_of_contact', e.target.value)}/>
+          <label style={labelStyle}>On-site contact</label>
+          <input style={inputStyle} placeholder="Who will be there to receive the order?" value={form.on_site_contact} onChange={e => ff('on_site_contact', e.target.value)}/>
         </div>
 
         <div style={{marginBottom:'20px'}}>
@@ -138,13 +189,13 @@ export default function Home() {
         <span style={sectionLabel}>Delivery Details</span>
 
         <div style={{marginBottom:'16px'}}>
-          <label style={labelStyle}>Delivery address</label>
+          <label style={labelStyle}>Delivery address <span style={required}>*</span></label>
           <input style={inputStyle} placeholder="Full address" value={form.delivery_address} onChange={e => ff('delivery_address', e.target.value)}/>
         </div>
 
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'16px'}}>
           <div>
-            <label style={labelStyle}>Delivery date</label>
+            <label style={labelStyle}>Delivery date <span style={required}>*</span></label>
             <input style={inputStyle} type="date" value={form.delivery_date} onChange={e => ff('delivery_date', e.target.value)}/>
           </div>
           <div>
@@ -159,9 +210,9 @@ export default function Home() {
         </div>
 
         {/* Menu */}
-        <span style={sectionLabel}>Menu</span>
+        <span style={sectionLabel}>Menu <span style={required}>*</span></span>
 
-        <div style={{marginBottom:'28px'}}>
+        <div style={{marginBottom:'20px'}}>
           <textarea
             style={{...inputStyle, height:'160px', resize:'none', lineHeight:'1.8'}}
             value={form.order_details}
@@ -170,6 +221,14 @@ export default function Home() {
           />
           <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0', fontFamily:font}}>Press Enter to add a new item</p>
         </div>
+
+        {/* Notes */}
+        <div style={{marginBottom:'28px'}}>
+          <label style={labelStyle}>Notes <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400'}}>(optional)</span></label>
+          <textarea style={{...inputStyle, height:'70px', resize:'none'}} placeholder="Gate code, elevator only, call before arriving..." value={form.notes} onChange={e => ff('notes', e.target.value)}/>
+        </div>
+
+        <div style={{fontSize:'11px', color:'#bbb', marginBottom:'16px', fontFamily:font}}><span style={required}>*</span> Required fields</div>
 
         <button onClick={save} disabled={saving} style={{width:'100%', background: saving ? '#888' : '#0f1214', color:'#ffffff', borderRadius:'10px', padding:'15px', fontSize:'15px', fontWeight:'600', border:'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily:font}}>
           {saving ? 'Saving...' : 'Save order'}
