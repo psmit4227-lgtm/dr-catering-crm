@@ -24,10 +24,10 @@ export default function Home() {
     const { error } = await supabase.from('orders').insert([form]);
     if (error) { alert('Error saving: ' + error.message); setSaving(false); return; }
     await fetch('/api/send-order', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(form)
-});
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form)
+    });
     setDone(true);
     setSaving(false);
   };
@@ -88,12 +88,12 @@ export default function Home() {
 
         <div style={{marginBottom:'20px'}}>
           <label style={labelStyle}>Food for how many people?</label>
-          <input style={inputStyle} type="number" placeholder="e.g. 25" value={form.guest_count} onChange={e => ff('guest_count', e.target.value)}/>
+          <input style={inputStyle} type="text" placeholder="e.g. 30 + 4 vegan + 2 gluten free" value={form.guest_count} onChange={e => ff('guest_count', e.target.value)}/>
         </div>
 
         <div style={{marginBottom:'28px'}}>
           <label style={labelStyle}>What do they want?</label>
-          <textarea style={{...inputStyle, height:'100px', resize:'none'}} placeholder="e.g. 40 chicken skewers, 10 hummus platters" value={form.order_details} onChange={e => ff('order_details', e.target.value)}/>
+          <textarea style={{...inputStyle, height:'100px', resize:'none'}} placeholder="• Chicken skewers x40&#10;• Hummus platter x10&#10;• Caesar salad x20" value={form.order_details} onChange={e => ff('order_details', e.target.value)}/>
         </div>
 
         <button onClick={save} disabled={saving} style={{width:'100%', background: saving ? '#888' : '#0f1214', color:'#ffffff', borderRadius:'10px', padding:'15px', fontSize:'15px', fontWeight:'600', border:'none', cursor: saving ? 'not-allowed' : 'pointer'}}>
