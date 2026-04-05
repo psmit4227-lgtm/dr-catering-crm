@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { generateOrderPDF, downloadOrderPDF } from './pdf';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -108,8 +107,7 @@ export default function Home() {
     const orderToSave = { ...form, event_type: finalEventType, guest_count: form.guest_count + (guestTotal > 0 ? ` (Total: ${guestTotal})` : '') };
     const { error } = await supabase.from('orders').insert([orderToSave]);
     if (error) { alert('Error saving: ' + error.message); setSaving(false); return; }
-    const pdfBase64 = generateOrderPDF(orderToSave);
-    await fetch('/api/send-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({...orderToSave, pdfBase64}) });
+    await fetch('/api/send-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderToSave) });
     setSavedOrder(orderToSave);
     setDone(true);
     setSaving(false);
@@ -138,11 +136,8 @@ export default function Home() {
         <div style={{fontSize:'48px', marginBottom:'16px'}}>✓</div>
         <h2 style={{fontSize:'22px', fontWeight:'700', color:'#0f1214', margin:'0 0 8px', fontFamily:font}}>Order sent to kitchen</h2>
         <div style={{display:'inline-block', background:'#f0f0f0', borderRadius:'8px', padding:'6px 16px', fontSize:'13px', fontWeight:'700', color:'#0f1214', marginBottom:'12px', fontFamily:font}}>{savedOrder?.order_number}</div>
-        <p style={{fontSize:'14px', color:'#888', margin:'0 0 28px', fontFamily:font}}>Order for {savedOrder?.client_name} has been saved and emailed with PDF attached.</p>
-        <div style={{display:'flex', gap:'12px', justifyContent:'center', flexWrap:'wrap'}}>
-          <button onClick={() => downloadOrderPDF(savedOrder)} style={{background:'#fff', color:'#0f1214', borderRadius:'10px', padding:'13px 28px', fontSize:'14px', fontWeight:'600', border:'1px solid #e8e6e0', cursor:'pointer', fontFamily:font}}>Download PDF</button>
-          <button onClick={reset} style={{background:'#0f1214', color:'#fff', borderRadius:'10px', padding:'13px 28px', fontSize:'14px', fontWeight:'600', border:'none', cursor:'pointer', fontFamily:font}}>New order</button>
-        </div>
+        <p style={{fontSize:'14px', color:'#888', margin:'0 0 28px', fontFamily:font}}>Order for {savedOrder?.client_name} has been saved and emailed.</p>
+        <button onClick={reset} style={{background:'#0f1214', color:'#fff', borderRadius:'10px', padding:'13px 28px', fontSize:'14px', fontWeight:'600', border:'none', cursor:'pointer', fontFamily:font}}>New order</button>
       </div>
     </main>
   );
