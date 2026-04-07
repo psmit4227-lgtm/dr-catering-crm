@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { generateOrderPDF } from './pdf';
+import { generateOrderPDF, downloadOrderPDF } from './pdf';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -199,9 +199,14 @@ export default function Home() {
     const orderToSave = { ...form, event_type: finalEventType, guest_count: form.guest_count + (guestTotal > 0 ? ` (Total: ${guestTotal})` : '') };
     const { error } = await supabase.from('orders').insert([orderToSave]);
     if (error) { alert('Error saving: ' + error.message); setSaving(false); return; }
-    const pdfDataUri = generateOrderPDF(orderToSave);
-    const pdfBase64 = pdfDataUri.split(',')[1];
-    console.log('pdfBase64 length:', pdfBase64 ? pdfBase64.length : 0);
+    let pdfBase64 = null;
+    try {
+      console.log('PDF generation starting');
+      pdfBase64 = generateOrderPDF(orderToSave);
+      console.log('pdfBase64 length:', pdfBase64?.length);
+    } catch (pdfErr) {
+      console.error('PDF generation failed:', pdfErr);
+    }
     await fetch('/api/send-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...orderToSave, pdfBase64 }) });
     setSavedOrder(orderToSave);
     setDone(true);

@@ -160,7 +160,7 @@ function buildPDF(order) {
 }
 
 export function generateOrderPDF(order) {
-  return buildPDF(order).output("datauristring");
+  return buildPDF(order).output("datauristring").split(",")[1];
 }
 
 export function downloadOrderPDF(order) {
