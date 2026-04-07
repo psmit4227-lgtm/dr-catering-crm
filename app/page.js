@@ -201,6 +201,7 @@ export default function Home() {
     if (error) { alert('Error saving: ' + error.message); setSaving(false); return; }
     const pdfDataUri = generateOrderPDF(orderToSave);
     const pdfBase64 = pdfDataUri.split(',')[1];
+    console.log('pdfBase64 length:', pdfBase64 ? pdfBase64.length : 0);
     await fetch('/api/send-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...orderToSave, pdfBase64 }) });
     setSavedOrder(orderToSave);
     setDone(true);

@@ -24,7 +24,7 @@ export async function POST(request) {
         <p style="font-family:Arial;font-size:12px;color:#888;margin-top:16px">PDF attached.</p>
       `,
       ...(pdfBase64 && {
-        attachments: [{ filename: `DR-Catering-${order.order_number}.pdf`, content: pdfBase64 }],
+        attachments: [{ filename: `DR-Catering-${order.order_number}.pdf`, content: Buffer.from(pdfBase64, 'base64') }],
       }),
     });
     if (error) return Response.json({ error }, { status: 500 });
