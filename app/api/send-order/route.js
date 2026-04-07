@@ -4,7 +4,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request) {
   try {
-    const order = await request.json();
+    const { pdfBase64, ...order } = await request.json();
     const { error } = await resend.emails.send({
       from: 'DR Catering <onboarding@resend.dev>',
       to: 'psmit4227@gmail.com',
@@ -21,7 +21,11 @@ export async function POST(request) {
           <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold">Menu</td><td style="padding:8px;border:1px solid #eee">${(order.order_details || '').replace(/\n/g, '<br/>')}</td></tr>
           ${order.notes ? `<tr><td style="padding:8px;border:1px solid #eee;font-weight:bold">Notes</td><td style="padding:8px;border:1px solid #eee">${order.notes}</td></tr>` : ''}
         </table>
-      `
+        <p style="font-family:Arial;font-size:12px;color:#888;margin-top:16px">PDF attached.</p>
+      `,
+      ...(pdfBase64 && {
+        attachments: [{ filename: `DR-Catering-${order.order_number}.pdf`, content: pdfBase64 }],
+      }),
     });
     if (error) return Response.json({ error }, { status: 500 });
     return Response.json({ success: true });
