@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -22,10 +22,13 @@ export default function Home() {
   const [savedOrder, setSavedOrder] = useState(null);
   const [pastClients, setPastClients] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
-  const [lastOrder, setLastOrder] = useState(null);
-  const [showLastOrder, setShowLastOrder] = useState(false);
+  const [returnModal, setReturnModal] = useState(null); // { lastAddress, lastMenu }
   const [width, setWidth] = useState(0);
   const [guestTotal, setGuestTotal] = useState(0);
+  const [listening, setListening] = useState(null); // null | 'menu' | 'notes'
+  const recognitionRef = useRef(null);
+  const speechBaseRef = useRef('');
+  const speechAccumulatedRef = useRef('');
 
   useEffect(() => {
     setWidth(window.innerWidth);
@@ -35,7 +38,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    supabase.from('orders').select('client_name, client_phone, client_email, order_details').order('created_at', { ascending: false }).then(({ data }) => {
+    supabase.from('orders').select('client_name, client_phone, client_email, delivery_address, order_details').order('created_at', { ascending: false }).then(({ data }) => {
       if (data) {
         const unique = [];
         const seen = new Set();
@@ -61,10 +64,13 @@ export default function Home() {
     }
   };
 
-  const selectSuggestion = (client) => {
+  const selectSuggestion = async (client) => {
     setForm(f => ({ ...f, client_name: client.client_name, client_phone: client.client_phone || '', client_email: client.client_email || '' }));
     setSuggestions([]);
-    if (client.order_details) { setLastOrder(client.order_details); setShowLastOrder(true); }
+    const { data } = await supabase.from('orders').select('delivery_address, order_details').eq('client_name', client.client_name).order('created_at', { ascending: false }).limit(1);
+    if (data && data[0] && (data[0].delivery_address || data[0].order_details)) {
+      setReturnModal({ lastAddress: data[0].delivery_address || '', lastMenu: data[0].order_details || '' });
+    }
   };
 
   const formatPhone = (val) => {
@@ -96,6 +102,91 @@ export default function Home() {
     if (e.key === 'Enter') { e.preventDefault(); ff('order_details', form.order_details + '\n• '); }
   };
 
+  const formatAsBullets = (text) => {
+    return text
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l)
+      .map(l => /^•/.test(l) ? (l.startsWith('• ') ? l : '• ' + l.slice(1)) : '• ' + l)
+      .join('\n') || '• ';
+  };
+
+  const startListening = (field) => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { alert('Speech recognition is not supported. Please use Chrome or Safari.'); return; }
+
+    if (listening === field) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    if (recognitionRef.current) { recognitionRef.current.abort(); }
+
+    const recognition = new SR();
+    recognitionRef.current = recognition;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    const base = field === 'menu' ? form.order_details : form.notes;
+    speechBaseRef.current = base;
+    speechAccumulatedRef.current = '';
+
+    const setField = (val) => ff(field === 'menu' ? 'order_details' : 'notes', val);
+    const needsSpace = (b) => b && !b.endsWith('\n') && !b.endsWith(' ');
+
+    recognition.onstart = () => setListening(field);
+
+    recognition.onresult = (e) => {
+      let finalText = '';
+      let interimText = '';
+      for (let i = 0; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          finalText += t.replace(/\b(next item|new item|next)\b/gi, '\n• ') + ' ';
+        } else {
+          interimText += t;
+        }
+      }
+      speechAccumulatedRef.current = finalText;
+      const sep = needsSpace(base) && finalText ? ' ' : '';
+      setField(base + sep + finalText + interimText);
+    };
+
+    recognition.onend = () => {
+      setListening(null);
+      recognitionRef.current = null;
+      const acc = speechAccumulatedRef.current;
+      const b = speechBaseRef.current;
+      const sep = needsSpace(b) && acc ? ' ' : '';
+      const raw = b + sep + acc;
+      setField(field === 'menu' ? formatAsBullets(raw) : (raw.trim() || ''));
+    };
+
+    recognition.onerror = (e) => {
+      if (e.error !== 'aborted') console.warn('Speech error:', e.error);
+      setListening(null);
+      recognitionRef.current = null;
+    };
+
+    recognition.start();
+  };
+
+  const MicIcon = () => (
+    <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
+      <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/>
+    </svg>
+  );
+
+  const micBtn = (field) => ({
+    background: listening === field ? '#e53e3e' : '#f0efeb',
+    color: listening === field ? '#fff' : '#555',
+    border: 'none', borderRadius: '50%',
+    width: '30px', height: '30px', cursor: 'pointer',
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0, transition: 'background 0.15s', marginLeft: '8px',
+  });
+
   const save = async () => {
     if (!form.client_name) { alert('Please enter client name'); return; }
     if (!form.delivery_date) { alert('Please enter delivery date'); return; }
@@ -118,8 +209,7 @@ export default function Home() {
     setDone(false);
     setSavedOrder(null);
     setSuggestions([]);
-    setLastOrder(null);
-    setShowLastOrder(false);
+    setReturnModal(null);
     setGuestTotal(0);
   };
 
@@ -154,13 +244,35 @@ export default function Home() {
 
         <div style={{fontSize:'20px', fontWeight:'700', color:'#0f1214', fontFamily:font, marginBottom:'24px'}}>New Order</div>
 
-        {showLastOrder && (
-          <div style={{background:'#fffbeb', border:'1px solid #f59e0b', borderRadius:'12px', padding:'18px', marginBottom:'24px'}}>
-            <div style={{fontSize:'13px', fontWeight:'700', color:'#92400e', marginBottom:'8px', fontFamily:font}}>Last order for this client:</div>
-            <div style={{fontSize:'13px', color:'#78350f', whiteSpace:'pre-line', marginBottom:'16px', fontFamily:font, lineHeight:'1.8'}}>{lastOrder}</div>
-            <div style={{display:'flex', gap:'10px', flexWrap:'wrap'}}>
-              <button onClick={() => { ff('order_details', lastOrder); setShowLastOrder(false); }} style={{background:'#0f1214', color:'#fff', padding:'10px 20px', borderRadius:'8px', border:'none', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>Same menu</button>
-              <button onClick={() => { ff('order_details', lastOrder); setShowLastOrder(false); }} style={{background:'#fff', color:'#0f1214', padding:'10px 20px', borderRadius:'8px', border:'1px solid #e8e6e0', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>I'll update it</button>
+        {returnModal && (
+          <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center', padding:'16px'}}
+            onClick={() => setReturnModal(null)}>
+            <div style={{background:'#fff', borderRadius:'16px', width:'100%', maxWidth:'480px', padding:'28px', boxShadow:'0 8px 32px rgba(0,0,0,0.18)', fontFamily:font}}
+              onClick={e => e.stopPropagation()}>
+              <div style={{fontSize:'16px', fontWeight:'700', color:'#0f1214', marginBottom:'20px'}}>Welcome back! Last order details:</div>
+
+              {returnModal.lastAddress && (
+                <div style={{marginBottom:'20px', padding:'14px', background:'#f9f8f5', borderRadius:'10px'}}>
+                  <div style={{fontSize:'11px', fontWeight:'700', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px'}}>Delivery Address</div>
+                  <div style={{fontSize:'13px', color:'#0f1214', marginBottom:'12px', lineHeight:'1.6'}}>{returnModal.lastAddress}</div>
+                  <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
+                    <button onClick={() => { ff('delivery_address', returnModal.lastAddress); setReturnModal(m => m.lastMenu ? { ...m, lastAddress: null } : null); }} style={{background:'#0f1214', color:'#fff', padding:'8px 16px', borderRadius:'8px', border:'none', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>Same address</button>
+                    <button onClick={() => { setReturnModal(m => m.lastMenu ? { ...m, lastAddress: null } : null); }} style={{background:'#fff', color:'#0f1214', padding:'8px 16px', borderRadius:'8px', border:'1px solid #e8e6e0', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>I'll update it</button>
+                  </div>
+                </div>
+              )}
+
+              {returnModal.lastMenu && (
+                <div style={{marginBottom:'4px', padding:'14px', background:'#f9f8f5', borderRadius:'10px'}}>
+                  <div style={{fontSize:'11px', fontWeight:'700', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px'}}>Menu</div>
+                  <div style={{fontSize:'13px', color:'#0f1214', whiteSpace:'pre-line', marginBottom:'12px', lineHeight:'1.8', maxHeight:'160px', overflowY:'auto'}}>{returnModal.lastMenu}</div>
+                  <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
+                    <button onClick={() => { ff('order_details', returnModal.lastMenu); setReturnModal(m => m.lastAddress ? { ...m, lastMenu: null } : null); }} style={{background:'#0f1214', color:'#fff', padding:'8px 16px', borderRadius:'8px', border:'none', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>Same menu</button>
+                    <button onClick={() => { ff('order_details', '• '); setReturnModal(m => m.lastAddress ? { ...m, lastMenu: null } : null); }} style={{background:'#fff', color:'#0f1214', padding:'8px 16px', borderRadius:'8px', border:'1px solid #e8e6e0', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>I'll update it</button>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         )}
@@ -247,16 +359,30 @@ export default function Home() {
           <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0', fontFamily:font}}>Use + to separate groups</p>
         </div>
 
-        <span style={sectionLabel}>Menu <span style={required}>*</span></span>
+        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:'12px', fontWeight:'700', color:'#0f1214', textTransform:'uppercase', letterSpacing:'0.08em', margin:'28px 0 16px', paddingBottom:'8px', borderBottom:'2px solid #0f1214', fontFamily:font}}>
+          <span>Menu <span style={required}>*</span></span>
+          <button onClick={() => startListening('menu')} style={micBtn('menu')} title={listening === 'menu' ? 'Stop listening' : 'Voice input'}>
+            <MicIcon />
+          </button>
+        </div>
 
         <div style={{marginBottom:'20px'}}>
           <textarea style={{...inputStyle, height:'200px', resize:'none', lineHeight:'1.8'}} value={form.order_details} onChange={handleMenu} onKeyDown={handleMenuKey}/>
-          <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0', fontFamily:font}}>Press Enter to add a new item</p>
+          {listening === 'menu'
+            ? <p style={{fontSize:'11px', color:'#e53e3e', margin:'4px 0 0', fontFamily:font}}>Listening... say "next" to start a new item</p>
+            : <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0', fontFamily:font}}>Press Enter or tap mic to add items</p>
+          }
         </div>
 
         <div style={{marginBottom:'32px'}}>
-          <label style={labelStyle}>Notes <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
+          <div style={{display:'flex', alignItems:'center', marginBottom:'6px'}}>
+            <label style={{...labelStyle, marginBottom:0}}>Notes <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
+            <button onClick={() => startListening('notes')} style={micBtn('notes')} title={listening === 'notes' ? 'Stop listening' : 'Voice input'}>
+              <MicIcon />
+            </button>
+          </div>
           <textarea style={{...inputStyle, height:'80px', resize:'none'}} placeholder="Gate code, elevator only, call before arriving..." value={form.notes} onChange={e => ff('notes', e.target.value)}/>
+          {listening === 'notes' && <p style={{fontSize:'11px', color:'#e53e3e', margin:'4px 0 0', fontFamily:font}}>Listening...</p>}
         </div>
 
         <div style={{fontSize:'11px', color:'#bbb', marginBottom:'16px', fontFamily:font}}><span style={required}>*</span> Required fields</div>
