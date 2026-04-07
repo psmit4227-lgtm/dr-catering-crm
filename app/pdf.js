@@ -1,176 +1,168 @@
 import jsPDF from "jspdf";
 
-export function generateOrderPDF(order) {
+function buildPDF(order) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
-  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageWidth = doc.internal.pageSize.getWidth(); // 215.9mm
   const margin = 20;
+  const cx = pageWidth / 2;
   const contentWidth = pageWidth - margin * 2;
-  let y = margin;
+  const colRight = pageWidth / 2 + 8;
+  const halfWidth = contentWidth / 2 - 8;
+  let y = 28;
 
-  const navy = [30, 58, 95];
-  const gold = [200, 160, 60];
-  const dark = [40, 40, 40];
-  const gray = [120, 120, 120];
-  const lineGray = [200, 200, 200];
+  const black = [15, 18, 20];
+  const gray = [140, 140, 140];
+  const lineGray = [210, 210, 210];
 
-  doc.setFillColor(...gold);
-  doc.rect(0, 0, pageWidth, 4, "F");
+  const setLabel = () => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...gray);
+  };
+  const setValue = () => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(...black);
+  };
+  const hRule = (weight = 0.5) => {
+    doc.setDrawColor(...lineGray);
+    doc.setLineWidth(weight);
+    doc.line(margin, y, pageWidth - margin, y);
+  };
 
+  // 1. "Event Menu" — bold 20pt centered
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-  doc.setTextColor(...navy);
-  doc.text("DR CATERING", margin, y + 14);
+  doc.setFontSize(20);
+  doc.setTextColor(...black);
+  doc.text("Event Menu", cx, y, { align: "center" });
+  y += 9;
 
-  doc.setFontSize(11);
+  // 2. Order number — gray 12pt centered
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(12);
   doc.setTextColor(...gray);
-  doc.text("ORDER CONFIRMATION", pageWidth - margin, y + 8, { align: "right" });
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.setTextColor(...navy);
-  doc.text(order.orderNumber || "ORD-0000", pageWidth - margin, y + 15, { align: "right" });
-
-  y += 24;
-  doc.setDrawColor(...lineGray);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageWidth - margin, y);
+  doc.text(order.order_number || "DRC-0000", cx, y, { align: "center" });
   y += 8;
 
-  const colRight = pageWidth / 2 + 5;
-
+  // 3. Client name — bold 14pt centered
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...gold);
-  doc.text("CUSTOMER", margin, y);
-  y += 5;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(...dark);
-  doc.text(order.customerName || "—", margin, y);
-  y += 5;
-  doc.setTextColor(...gray);
-  doc.setFontSize(9);
-  if (order.customerPhone) { doc.text(order.customerPhone, margin, y); y += 4; }
-  if (order.customerEmail) { doc.text(order.customerEmail, margin, y); }
-
-  let yRight = y - (order.customerPhone ? 14 : 10);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...gold);
-  doc.text("EVENT DETAILS", colRight, yRight);
-  yRight += 5;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(...dark);
-  [
-    order.eventDate && `Date: ${order.eventDate}`,
-    order.eventTime && `Time: ${order.eventTime}`,
-    order.eventLocation && `Location: ${order.eventLocation}`,
-    order.guestCount && `Guests: ${order.guestCount}`,
-  ].filter(Boolean).forEach((line) => {
-    doc.text(line, colRight, yRight);
-    yRight += 5;
-  });
-
-  y = Math.max(y, yRight) + 6;
-  doc.setDrawColor(...lineGray);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 8;
-
-  const colItem = margin;
-  const colQty = margin + contentWidth * 0.55;
-  const colPrice = margin + contentWidth * 0.72;
-  const colTotal = pageWidth - margin;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...navy);
-  doc.text("ITEM", colItem, y);
-  doc.text("QTY", colQty, y);
-  doc.text("PRICE", colPrice, y);
-  doc.text("TOTAL", colTotal, y, { align: "right" });
-  y += 3;
-  doc.setDrawColor(...navy);
-  doc.setLineWidth(0.3);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 5;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  let subtotal = 0;
-
-  (order.items || []).forEach((item, i) => {
-    const lineTotal = (item.qty || 0) * (item.unitPrice || 0);
-    subtotal += lineTotal;
-
-    if (i % 2 === 0) {
-      doc.setFillColor(245, 245, 250);
-      doc.rect(margin, y - 4, contentWidth, 7, "F");
-    }
-
-    doc.setTextColor(...dark);
-    doc.text(item.name || "—", colItem, y);
-    doc.text(String(item.qty || 0), colQty, y);
-    doc.text(`$${(item.unitPrice || 0).toFixed(2)}`, colPrice, y);
-    doc.text(`$${lineTotal.toFixed(2)}`, colTotal, y, { align: "right" });
-    y += 7;
-
-    if (y > 250) { doc.addPage(); y = margin; }
-  });
-
-  y += 3;
-  doc.setDrawColor(...lineGray);
-  doc.line(colPrice - 5, y, pageWidth - margin, y);
-  y += 6;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(...gray);
-  doc.text("Subtotal", colPrice - 5, y);
-  doc.text(`$${subtotal.toFixed(2)}`, colTotal, y, { align: "right" });
-  y += 6;
-
-  const tax = subtotal * 0.06625;
-  doc.text("Tax (6.625%)", colPrice - 5, y);
-  doc.text(`$${tax.toFixed(2)}`, colTotal, y, { align: "right" });
-  y += 6;
-
-  doc.setDrawColor(...navy);
-  doc.setLineWidth(0.5);
-  doc.line(colPrice - 5, y, pageWidth - margin, y);
+  doc.setFontSize(14);
+  doc.setTextColor(...black);
+  doc.text(order.client_name || "—", cx, y, { align: "center" });
   y += 7;
 
+  // 4. Client phone — gray 12pt centered
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(12);
+  doc.setTextColor(...gray);
+  doc.text(order.client_phone || "—", cx, y, { align: "center" });
+  y += 9;
+
+  // 5. Horizontal line
+  hRule(0.5);
+  y += 7;
+
+  // 6. Two columns — Delivery date | Delivery time
+  setLabel();
+  doc.text("DELIVERY DATE", margin, y);
+  doc.text("DELIVERY TIME", colRight, y);
+  y += 5;
+  setValue();
+  doc.text(order.delivery_date || "—", margin, y);
+  doc.text(order.delivery_time || "—", colRight, y);
+  y += 10;
+
+  // 7. Two columns — Full address | Point of contact
+  setLabel();
+  doc.text("DELIVERY ADDRESS", margin, y);
+  doc.text("POINT OF CONTACT", colRight, y);
+  y += 5;
+  setValue();
+  const addressLines = doc.splitTextToSize(order.delivery_address || "—", halfWidth);
+  doc.text(addressLines, margin, y);
+  doc.text(order.on_site_contact || "—", colRight, y);
+  y += addressLines.length > 1 ? addressLines.length * 5.5 + 3 : 10;
+
+  // 8. Full width — Number of guests (value bold)
+  setLabel();
+  doc.text("NUMBER OF GUESTS", margin, y);
+  y += 5;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...black);
+  doc.text(order.guest_count || "—", margin, y);
+  y += 10;
+
+  // 9. Horizontal line
+  hRule(0.5);
+  y += 8;
+
+  // 10. "MENU" — bold uppercase centered
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.setTextColor(...navy);
-  doc.text("TOTAL DUE", colPrice - 5, y);
-  doc.text(`$${(subtotal + tax).toFixed(2)}`, colTotal, y, { align: "right" });
-  y += 12;
+  doc.setTextColor(...black);
+  doc.text("MENU", cx, y, { align: "center" });
+  y += 8;
 
-  if (order.notes) {
-    doc.setDrawColor(...lineGray);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 7;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(...gold);
-    doc.text("SPECIAL INSTRUCTIONS", margin, y);
+  // 11 & 12. Menu items + always append Beverages and Paper boxes
+  const rawItems = (order.order_details || "• ")
+    .split("\n")
+    .map(l => l.trim())
+    .filter(l => l && l !== "•" && l !== "• ");
+
+  const filtered = rawItems.filter(
+    l => !/^\s*•?\s*beverages?\s*$/i.test(l) && !/^\s*•?\s*paper\s+boxes?\s*$/i.test(l)
+  );
+
+  const menuItems = [...filtered, "• Beverages", "• Paper boxes"];
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(14);
+  doc.setTextColor(...black);
+  const lineH = 8;
+  menuItems.forEach(item => {
+    const text = /^•/.test(item) ? item : "• " + item;
+    const wrapped = doc.splitTextToSize(text, contentWidth);
+    doc.text(wrapped, margin, y);
+    y += wrapped.length * lineH;
+  });
+
+  y += 4;
+
+  // 13. Notes (if present) — thin line then label + text
+  if (order.notes && order.notes.trim()) {
+    hRule(0.3);
+    y += 6;
+    setLabel();
+    doc.text("NOTES", margin, y);
     y += 5;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(...dark);
-    doc.text(doc.splitTextToSize(order.notes, contentWidth), margin, y);
+    setValue();
+    const notesLines = doc.splitTextToSize(order.notes.trim(), contentWidth);
+    doc.text(notesLines, margin, y);
+    y += notesLines.length * 6 + 4;
   }
 
-  const footerY = doc.internal.pageSize.getHeight() - 15;
-  doc.setFillColor(...gold);
-  doc.rect(0, doc.internal.pageSize.getHeight() - 4, pageWidth, 4, "F");
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+  // 14. Thin line + footer
+  hRule(0.3);
+  y += 6;
+  const today = new Date().toLocaleDateString("en-US", {
+    year: "numeric", month: "long", day: "numeric",
+  });
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(9);
   doc.setTextColor(...gray);
-  doc.text("DR Catering — Thank you for your business!", pageWidth / 2, footerY, { align: "center" });
+  doc.text(
+    `DR Catering — ${order.order_number || ""} — Generated ${today}`,
+    cx, y, { align: "center" }
+  );
 
-  return doc.output("datauristring");
+  return doc;
+}
+
+export function generateOrderPDF(order) {
+  return buildPDF(order).output("datauristring");
+}
+
+export function downloadOrderPDF(order) {
+  buildPDF(order).save(`DR-Catering-${order.order_number || "order"}.pdf`);
 }
