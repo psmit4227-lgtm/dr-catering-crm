@@ -10,40 +10,146 @@ const supabase = createClient(
 
 const genOrderNum = () => 'DRC-' + String(Math.floor(Math.random() * 9000) + 1000);
 
+const FONT = 'Calibri, Georgia, serif';
+const cardStyle = { background:'#ffffff', borderRadius:'16px', border:'1px solid #e8e6e0', width:'100%', boxSizing:'border-box' };
+const authInput = { width:'100%', padding:'11px 14px', border:'1px solid #e8e6e0', borderRadius:'10px', fontSize:'15px', color:'#0f1214', boxSizing:'border-box', outline:'none', fontFamily:FONT, background:'#fff' };
+const authLabel = { display:'block', fontSize:'11px', fontWeight:'600', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px', fontFamily:FONT };
+const primaryBtn = (disabled) => ({ width:'100%', background: disabled ? '#bbb' : '#0f1214', color:'#fff', borderRadius:'10px', padding:'14px', fontSize:'15px', fontWeight:'700', border:'none', cursor: disabled ? 'not-allowed' : 'pointer', fontFamily:FONT });
+
+function AuthShell({ children }) {
+  return (
+    <main style={{minHeight:'100vh', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px', fontFamily:FONT}}>
+      <div style={{...cardStyle, maxWidth:'400px', padding:'40px 36px'}}>
+        <div style={{textAlign:'center', marginBottom:'32px', paddingBottom:'24px', borderBottom:'1px solid #e8e6e0'}}>
+          <div style={{fontSize:'28px', fontWeight:'700', color:'#0f1214', fontFamily:FONT}}><strong>DR Catering</strong></div>
+          <div style={{fontSize:'12px', color:'#aaa', letterSpacing:'0.05em', marginTop:'6px', fontFamily:FONT}}>Catering Operating System</div>
+        </div>
+        {children}
+      </div>
+    </main>
+  );
+}
+
 export default function Home() {
-  const [session, setSession] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  // ── Auth state ────────────────────────────────────────────────
+  const [screen, setScreen] = useState('loading'); // 'loading'|'login'|'mfa-enroll'|'mfa-verify'|'app'
+
+  // Login
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setAuthLoading(false);
+  // MFA enroll
+  const [enrollFactorId, setEnrollFactorId] = useState('');
+  const [enrollQR, setEnrollQR] = useState('');
+  const [enrollSecret, setEnrollSecret] = useState('');
+  const [enrollCode, setEnrollCode] = useState('');
+  const [enrollError, setEnrollError] = useState('');
+  const [enrollLoading, setEnrollLoading] = useState(false);
+
+  // MFA verify
+  const [verifyFactorId, setVerifyFactorId] = useState('');
+  const [verifyChallengeId, setVerifyChallengeId] = useState('');
+  const [verifyCode, setVerifyCode] = useState('');
+  const [verifyError, setVerifyError] = useState('');
+  const [verifyLoading, setVerifyLoading] = useState(false);
+
+  // ── Auth helpers ──────────────────────────────────────────────
+  const startEnrollment = async () => {
+    const { data, error } = await supabase.auth.mfa.enroll({
+      factorType: 'totp',
+      issuer: 'DR Catering',
+      friendlyName: 'Authenticator',
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    if (error) { console.error('Enroll error:', error); return; }
+    setEnrollFactorId(data.id);
+    setEnrollQR(data.totp.qr_code);   // data URI — render as <img>
+    setEnrollSecret(data.totp.secret);
+    setScreen('mfa-enroll');
+  };
+
+  const startChallenge = async (factorId) => {
+    const { data, error } = await supabase.auth.mfa.challenge({ factorId });
+    if (error) { console.error('Challenge error:', error); return; }
+    setVerifyFactorId(factorId);
+    setVerifyChallengeId(data.id);
+    setScreen('mfa-verify');
+  };
+
+  const checkMfaStatus = async () => {
+    const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aalData.currentLevel === 'aal2') { setScreen('app'); return; }
+
+    const { data: factorsData } = await supabase.auth.mfa.listFactors();
+    const verifiedTotp = (factorsData?.totp || []).filter(f => f.status === 'verified');
+
+    if (verifiedTotp.length > 0) {
+      await startChallenge(verifiedTotp[0].id);
+    } else {
+      await startEnrollment();
+    }
+  };
+
+  // ── Auth init ─────────────────────────────────────────────────
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) { setScreen('login'); return; }
+      await checkMfaStatus();
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        setScreen('login');
+        setLoginEmail(''); setLoginPassword(''); setLoginError('');
+        setEnrollCode(''); setEnrollError('');
+        setVerifyCode(''); setVerifyError('');
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
 
+  // ── Auth actions ──────────────────────────────────────────────
   const handleSignIn = async (e) => {
     e.preventDefault();
     setLoginError('');
     setLoginLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
-    if (error) {
-      setLoginError('Invalid email or password.');
-    }
+    if (error) { setLoginError('Invalid email or password.'); setLoginLoading(false); return; }
+    await checkMfaStatus();
     setLoginLoading(false);
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
+  const handleEnrollVerify = async (e) => {
+    e.preventDefault();
+    setEnrollError('');
+    setEnrollLoading(true);
+    const { error } = await supabase.auth.mfa.challengeAndVerify({
+      factorId: enrollFactorId,
+      code: enrollCode.replace(/\s/g, ''),
+    });
+    if (error) { setEnrollError('Invalid code — try again.'); setEnrollLoading(false); return; }
+    setScreen('app');
+    setEnrollLoading(false);
   };
 
+  const handleMfaVerify = async (e) => {
+    e.preventDefault();
+    setVerifyError('');
+    setVerifyLoading(true);
+    const { error } = await supabase.auth.mfa.verify({
+      factorId: verifyFactorId,
+      challengeId: verifyChallengeId,
+      code: verifyCode.replace(/\s/g, ''),
+    });
+    if (error) { setVerifyError('Invalid code — try again.'); setVerifyLoading(false); return; }
+    setScreen('app');
+    setVerifyLoading(false);
+  };
+
+  const handleSignOut = async () => { await supabase.auth.signOut(); };
+
+  // ── App state ─────────────────────────────────────────────────
   const [form, setForm] = useState({
     order_number: genOrderNum(),
     client_name: '', client_phone: '', client_email: '',
@@ -56,10 +162,10 @@ export default function Home() {
   const [savedOrder, setSavedOrder] = useState(null);
   const [pastClients, setPastClients] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
-  const [returnModal, setReturnModal] = useState(null); // { lastAddress, lastMenu }
+  const [returnModal, setReturnModal] = useState(null);
   const [width, setWidth] = useState(0);
   const [guestTotal, setGuestTotal] = useState(0);
-  const [listening, setListening] = useState(null); // null | 'menu' | 'notes'
+  const [listening, setListening] = useState(null);
   const recognitionRef = useRef(null);
   const speechBaseRef = useRef('');
   const speechAccumulatedRef = useRef('');
@@ -72,20 +178,18 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (screen !== 'app') return;
     supabase.from('orders').select('client_name, client_phone, client_email, delivery_address, order_details').order('created_at', { ascending: false }).then(({ data }) => {
       if (data) {
         const unique = [];
         const seen = new Set();
         data.forEach(d => {
-          if (d.client_name && !seen.has(d.client_name)) {
-            seen.add(d.client_name);
-            unique.push(d);
-          }
+          if (d.client_name && !seen.has(d.client_name)) { seen.add(d.client_name); unique.push(d); }
         });
         setPastClients(unique);
       }
     });
-  }, []);
+  }, [screen]);
 
   const ff = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -129,10 +233,7 @@ export default function Home() {
     ff('guest_count', cleaned);
     const segments = cleaned.split('+');
     let total = 0;
-    segments.forEach(seg => {
-      const num = seg.trim().match(/^\d+/);
-      if (num) total += parseInt(num[0]);
-    });
+    segments.forEach(seg => { const num = seg.trim().match(/^\d+/); if (num) total += parseInt(num[0]); });
     setGuestTotal(total);
   };
 
@@ -147,10 +248,7 @@ export default function Home() {
   };
 
   const formatAsBullets = (text) => {
-    return text
-      .split('\n')
-      .map(l => l.trim())
-      .filter(l => l)
+    return text.split('\n').map(l => l.trim()).filter(l => l)
       .map(l => /^•/.test(l) ? (l.startsWith('• ') ? l : '• ' + l.slice(1)) : '• ' + l)
       .join('\n') || '• ';
   };
@@ -160,12 +258,7 @@ export default function Home() {
   const startListening = (field) => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { alert('Speech recognition is not supported. Please use Chrome or Safari.'); return; }
-
-    if (listening === field) {
-      recognitionRef.current?.stop();
-      return;
-    }
-
+    if (listening === field) { recognitionRef.current?.stop(); return; }
     if (recognitionRef.current) { recognitionRef.current.abort(); }
 
     const recognition = new SR();
@@ -181,7 +274,6 @@ export default function Home() {
     speechAccumulatedRef.current = '';
 
     const needsSpace = (b) => b && !b.endsWith('\n') && !b.endsWith(' ');
-
     const commitSimple = (text) => {
       const val = text.trim();
       if (field === 'client_phone') ff('client_phone', formatPhone(val));
@@ -192,51 +284,34 @@ export default function Home() {
     };
 
     let aborted = false;
-
     recognition.onstart = () => setListening(field);
-
     recognition.onresult = (e) => {
       let finalText = '';
       let interimText = '';
       for (let i = 0; i < e.results.length; i++) {
         const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) {
-          finalText += isMenu ? t.replace(/\b(next item|new item|next)\b/gi, '\n• ') + ' ' : t + ' ';
-        } else {
-          interimText += t;
-        }
+        if (e.results[i].isFinal) { finalText += isMenu ? t.replace(/\b(next item|new item|next)\b/gi, '\n• ') + ' ' : t + ' '; }
+        else { interimText += t; }
       }
       speechAccumulatedRef.current = finalText;
-      if (isSimple) {
-        commitSimple(finalText + interimText);
-      } else {
-        const sep = needsSpace(base) && finalText ? ' ' : '';
-        ff(isMenu ? 'order_details' : 'notes', base + sep + finalText + interimText);
-      }
+      if (isSimple) { commitSimple(finalText + interimText); }
+      else { const sep = needsSpace(base) && finalText ? ' ' : ''; ff(isMenu ? 'order_details' : 'notes', base + sep + finalText + interimText); }
     };
-
     recognition.onend = () => {
       setListening(null);
       recognitionRef.current = null;
       if (aborted) return;
       const acc = speechAccumulatedRef.current;
       const b = speechBaseRef.current;
-      if (isSimple) {
-        commitSimple(acc);
-      } else {
-        const sep = needsSpace(b) && acc ? ' ' : '';
-        const raw = b + sep + acc;
-        ff(isMenu ? 'order_details' : 'notes', isMenu ? formatAsBullets(raw) : (raw.trim() || ''));
-      }
+      if (isSimple) { commitSimple(acc); }
+      else { const sep = needsSpace(b) && acc ? ' ' : ''; const raw = b + sep + acc; ff(isMenu ? 'order_details' : 'notes', isMenu ? formatAsBullets(raw) : (raw.trim() || '')); }
     };
-
     recognition.onerror = (e) => {
       if (e.error === 'aborted') { aborted = true; return; }
       console.warn('Speech error:', e.error);
       setListening(null);
       recognitionRef.current = null;
     };
-
     recognition.start();
   };
 
@@ -271,25 +346,17 @@ export default function Home() {
       console.log('PDF generation starting');
       const pdfBase64 = generateOrderPDF(orderToSave);
       console.log('PDF generated, length:', pdfBase64?.length);
-      const pdfBlob = new Blob(
-        [Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0))],
-        { type: 'application/pdf' }
-      );
+      const pdfBlob = new Blob([Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0))], { type: 'application/pdf' });
       const fileName = `${orderToSave.order_number}.pdf`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('order-pdfs')
-        .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
-      if (uploadError) {
-        console.error('PDF upload failed:', uploadError);
-      } else {
+      const { data: uploadData, error: uploadError } = await supabase.storage.from('order-pdfs').upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
+      if (uploadError) { console.error('PDF upload failed:', uploadError); }
+      else {
         console.log('PDF uploaded to storage:', uploadData);
         const { data: urlData } = supabase.storage.from('order-pdfs').getPublicUrl(fileName);
         pdfUrl = urlData.publicUrl;
         console.log('PDF URL:', pdfUrl);
       }
-    } catch (pdfErr) {
-      console.error('PDF generation/upload failed:', pdfErr);
-    }
+    } catch (pdfErr) { console.error('PDF generation/upload failed:', pdfErr); }
     await fetch('/api/send-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...orderToSave, pdfUrl }) });
     setSavedOrder(orderToSave);
     setDone(true);
@@ -298,66 +365,117 @@ export default function Home() {
 
   const reset = () => {
     setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', event_type: '', event_type_other: '', delivery_address: '', delivery_date: '', delivery_time: '', guest_count: '', order_details: '• ', notes: '' });
-    setDone(false);
-    setSavedOrder(null);
-    setSuggestions([]);
-    setReturnModal(null);
-    setGuestTotal(0);
+    setDone(false); setSavedOrder(null); setSuggestions([]); setReturnModal(null); setGuestTotal(0);
   };
 
-  const isMobile = width < 640;
-  const font = 'Calibri, Georgia, serif';
+  // ── Render: auth screens ──────────────────────────────────────
 
-  if (authLoading) return (
-    <main style={{minHeight:'100vh', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Calibri, Georgia, serif'}}>
+  if (screen === 'loading') return (
+    <main style={{minHeight:'100vh', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:FONT}}>
       <div style={{fontSize:'14px', color:'#aaa'}}>Loading...</div>
     </main>
   );
 
-  if (!session) return (
-    <main style={{minHeight:'100vh', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px', fontFamily:'Calibri, Georgia, serif'}}>
-      <div style={{background:'#ffffff', borderRadius:'16px', border:'1px solid #e8e6e0', width:'100%', maxWidth:'400px', padding:'40px 36px', boxSizing:'border-box'}}>
-        <div style={{textAlign:'center', marginBottom:'32px', paddingBottom:'24px', borderBottom:'1px solid #e8e6e0'}}>
-          <div style={{fontSize:'28px', fontWeight:'700', color:'#0f1214'}}><strong>DR Catering</strong></div>
-          <div style={{fontSize:'12px', color:'#aaa', letterSpacing:'0.05em', marginTop:'6px'}}>Catering Operating System</div>
+  if (screen === 'login') return (
+    <AuthShell>
+      <form onSubmit={handleSignIn}>
+        <div style={{marginBottom:'16px'}}>
+          <label style={authLabel}>Email</label>
+          <input type="email" required autoComplete="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} style={authInput} placeholder="you@example.com"/>
         </div>
-        <form onSubmit={handleSignIn}>
-          <div style={{marginBottom:'16px'}}>
-            <label style={{display:'block', fontSize:'11px', fontWeight:'600', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px'}}>Email</label>
-            <input
-              type="email"
-              required
-              autoComplete="email"
-              value={loginEmail}
-              onChange={e => setLoginEmail(e.target.value)}
-              style={{width:'100%', padding:'11px 14px', border:'1px solid #e8e6e0', borderRadius:'10px', fontSize:'15px', color:'#0f1214', boxSizing:'border-box', outline:'none', fontFamily:'Calibri, Georgia, serif', background:'#fff'}}
-              placeholder="you@example.com"
-            />
-          </div>
-          <div style={{marginBottom:'24px'}}>
-            <label style={{display:'block', fontSize:'11px', fontWeight:'600', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px'}}>Password</label>
-            <input
-              type="password"
-              required
-              autoComplete="current-password"
-              value={loginPassword}
-              onChange={e => setLoginPassword(e.target.value)}
-              style={{width:'100%', padding:'11px 14px', border:'1px solid #e8e6e0', borderRadius:'10px', fontSize:'15px', color:'#0f1214', boxSizing:'border-box', outline:'none', fontFamily:'Calibri, Georgia, serif', background:'#fff'}}
-              placeholder="••••••••"
-            />
-          </div>
-          {loginError && <div style={{fontSize:'13px', color:'#e53e3e', marginBottom:'16px', textAlign:'center'}}>{loginError}</div>}
-          <button
-            type="submit"
-            disabled={loginLoading}
-            style={{width:'100%', background: loginLoading ? '#888' : '#0f1214', color:'#fff', borderRadius:'10px', padding:'14px', fontSize:'15px', fontWeight:'700', border:'none', cursor: loginLoading ? 'not-allowed' : 'pointer', fontFamily:'Calibri, Georgia, serif'}}
-          >
-            {loginLoading ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
-      </div>
-    </main>
+        <div style={{marginBottom:'24px'}}>
+          <label style={authLabel}>Password</label>
+          <input type="password" required autoComplete="current-password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} style={authInput} placeholder="••••••••"/>
+        </div>
+        {loginError && <div style={{fontSize:'13px', color:'#e53e3e', marginBottom:'16px', textAlign:'center'}}>{loginError}</div>}
+        <button type="submit" disabled={loginLoading} style={primaryBtn(loginLoading)}>
+          {loginLoading ? 'Signing in...' : 'Sign in'}
+        </button>
+      </form>
+    </AuthShell>
   );
+
+  if (screen === 'mfa-enroll') return (
+    <AuthShell>
+      <div style={{textAlign:'center', marginBottom:'20px'}}>
+        <div style={{fontSize:'16px', fontWeight:'700', color:'#0f1214', marginBottom:'8px', fontFamily:FONT}}>Set up two-factor authentication</div>
+        <div style={{fontSize:'13px', color:'#888', lineHeight:'1.6', fontFamily:FONT}}>Scan this QR code with Google Authenticator or any authenticator app, then enter the 6-digit code below.</div>
+      </div>
+
+      {enrollQR && (
+        <div style={{display:'flex', justifyContent:'center', marginBottom:'20px'}}>
+          <div style={{padding:'12px', background:'#fff', border:'1px solid #e8e6e0', borderRadius:'12px', display:'inline-block'}}>
+            <img src={enrollQR} alt="QR code" width="180" height="180" style={{display:'block'}}/>
+          </div>
+        </div>
+      )}
+
+      {enrollSecret && (
+        <div style={{background:'#f9f8f5', borderRadius:'10px', padding:'12px 16px', marginBottom:'20px', textAlign:'center'}}>
+          <div style={{fontSize:'10px', fontWeight:'700', color:'#aaa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'4px', fontFamily:FONT}}>Manual entry code</div>
+          <div style={{fontSize:'13px', fontWeight:'700', color:'#0f1214', letterSpacing:'0.15em', fontFamily:'monospace, monospace'}}>{enrollSecret}</div>
+        </div>
+      )}
+
+      <form onSubmit={handleEnrollVerify}>
+        <div style={{marginBottom:'20px'}}>
+          <label style={authLabel}>6-digit code from your app</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            required
+            value={enrollCode}
+            onChange={e => setEnrollCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            style={{...authInput, fontSize:'22px', letterSpacing:'0.3em', textAlign:'center', fontFamily:'monospace, monospace'}}
+            placeholder="000000"
+          />
+        </div>
+        {enrollError && <div style={{fontSize:'13px', color:'#e53e3e', marginBottom:'16px', textAlign:'center'}}>{enrollError}</div>}
+        <button type="submit" disabled={enrollLoading || enrollCode.length < 6} style={primaryBtn(enrollLoading || enrollCode.length < 6)}>
+          {enrollLoading ? 'Verifying...' : 'Verify and enable 2FA'}
+        </button>
+      </form>
+    </AuthShell>
+  );
+
+  if (screen === 'mfa-verify') return (
+    <AuthShell>
+      <div style={{textAlign:'center', marginBottom:'24px'}}>
+        <div style={{fontSize:'32px', marginBottom:'12px'}}>🔐</div>
+        <div style={{fontSize:'16px', fontWeight:'700', color:'#0f1214', marginBottom:'8px', fontFamily:FONT}}>Enter your authentication code</div>
+        <div style={{fontSize:'13px', color:'#888', lineHeight:'1.6', fontFamily:FONT}}>Open your authenticator app and enter the 6-digit code for DR Catering.</div>
+      </div>
+
+      <form onSubmit={handleMfaVerify}>
+        <div style={{marginBottom:'20px'}}>
+          <label style={authLabel}>6-digit code</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            required
+            autoFocus
+            value={verifyCode}
+            onChange={e => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            style={{...authInput, fontSize:'22px', letterSpacing:'0.3em', textAlign:'center', fontFamily:'monospace, monospace'}}
+            placeholder="000000"
+          />
+        </div>
+        {verifyError && <div style={{fontSize:'13px', color:'#e53e3e', marginBottom:'16px', textAlign:'center'}}>{verifyError}</div>}
+        <button type="submit" disabled={verifyLoading || verifyCode.length < 6} style={primaryBtn(verifyLoading || verifyCode.length < 6)}>
+          {verifyLoading ? 'Verifying...' : 'Verify'}
+        </button>
+      </form>
+    </AuthShell>
+  );
+
+  // ── Render: app ───────────────────────────────────────────────
+
+  const isMobile = width < 640;
+  const font = FONT;
   const inputStyle = { width:'100%', padding:'11px 14px', border:'1px solid #e8e6e0', borderRadius:'10px', fontSize: isMobile ? '16px' : '15px', color:'#0f1214', boxSizing:'border-box', outline:'none', fontFamily:font, background:'#fff' };
   const labelStyle = { display:'block', fontSize:'11px', fontWeight:'600', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px', fontFamily:font };
   const sectionLabel = { fontSize:'12px', fontWeight:'700', color:'#0f1214', textTransform:'uppercase', letterSpacing:'0.08em', margin:'28px 0 16px', paddingBottom:'8px', borderBottom:'2px solid #0f1214', display:'block', fontFamily:font };
@@ -407,7 +525,6 @@ export default function Home() {
                   <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
                     <button onClick={() => { ff('delivery_address', returnModal.lastAddress); setReturnModal(m => m.lastMenu ? { ...m, lastAddress: null } : null); }} style={{background:'#0f1214', color:'#fff', padding:'8px 16px', borderRadius:'8px', border:'none', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>Same address</button>
                     <button onClick={() => { setReturnModal(m => m.lastMenu ? { ...m, lastAddress: null } : null); }} style={{background:'#fff', color:'#0f1214', padding:'8px 16px', borderRadius:'8px', border:'1px solid #e8e6e0', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>I'll update it</button>
-
                   </div>
                 </div>
               )}
