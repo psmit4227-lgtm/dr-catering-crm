@@ -11,6 +11,39 @@ const supabase = createClient(
 const genOrderNum = () => 'DRC-' + String(Math.floor(Math.random() * 9000) + 1000);
 
 export default function Home() {
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignIn = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+    setLoginLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
+    if (error) {
+      setLoginError('Invalid email or password.');
+    }
+    setLoginLoading(false);
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   const [form, setForm] = useState({
     order_number: genOrderNum(),
     client_name: '', client_phone: '', client_email: '',
@@ -66,11 +99,21 @@ export default function Home() {
   };
 
   const selectSuggestion = async (client) => {
-    setForm(f => ({ ...f, client_name: client.client_name, client_phone: client.client_phone || '', client_email: client.client_email || '' }));
+    setForm(f => ({ ...f, client_name: client.client_name }));
     setSuggestions([]);
-    const { data } = await supabase.from('orders').select('delivery_address, order_details').eq('client_name', client.client_name).order('created_at', { ascending: false }).limit(1);
-    if (data && data[0] && (data[0].delivery_address || data[0].order_details)) {
-      setReturnModal({ lastAddress: data[0].delivery_address || '', lastMenu: data[0].order_details || '' });
+    const { data, error } = await supabase
+      .from('orders')
+      .select('client_phone, client_email, delivery_address, order_details')
+      .eq('client_name', client.client_name)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (error) { console.error('Error fetching last order:', error); return; }
+    if (data && data[0]) {
+      const last = data[0];
+      setForm(f => ({ ...f, client_phone: last.client_phone || '', client_email: last.client_email || '' }));
+      if (last.delivery_address || last.order_details) {
+        setReturnModal({ lastAddress: last.delivery_address || '', lastMenu: last.order_details || '' });
+      }
     }
   };
 
@@ -112,6 +155,8 @@ export default function Home() {
       .join('\n') || '• ';
   };
 
+  const simpleFields = new Set(['client_name', 'client_phone', 'client_email', 'on_site_contact', 'delivery_address', 'guest_count']);
+
   const startListening = (field) => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { alert('Speech recognition is not supported. Please use Chrome or Safari.'); return; }
@@ -129,12 +174,24 @@ export default function Home() {
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
-    const base = field === 'menu' ? form.order_details : form.notes;
+    const isSimple = simpleFields.has(field);
+    const isMenu = field === 'menu';
+    const base = isSimple ? '' : (isMenu ? form.order_details : form.notes);
     speechBaseRef.current = base;
     speechAccumulatedRef.current = '';
 
-    const setField = (val) => ff(field === 'menu' ? 'order_details' : 'notes', val);
     const needsSpace = (b) => b && !b.endsWith('\n') && !b.endsWith(' ');
+
+    const commitSimple = (text) => {
+      const val = text.trim();
+      if (field === 'client_phone') ff('client_phone', formatPhone(val));
+      else if (field === 'client_name') handleNameChange(val);
+      else if (field === 'client_email') ff('client_email', val.replace(/\s+/g, '').toLowerCase());
+      else if (field === 'guest_count') handleGuestCount(val);
+      else ff(field, val);
+    };
+
+    let aborted = false;
 
     recognition.onstart = () => setListening(field);
 
@@ -144,28 +201,38 @@ export default function Home() {
       for (let i = 0; i < e.results.length; i++) {
         const t = e.results[i][0].transcript;
         if (e.results[i].isFinal) {
-          finalText += t.replace(/\b(next item|new item|next)\b/gi, '\n• ') + ' ';
+          finalText += isMenu ? t.replace(/\b(next item|new item|next)\b/gi, '\n• ') + ' ' : t + ' ';
         } else {
           interimText += t;
         }
       }
       speechAccumulatedRef.current = finalText;
-      const sep = needsSpace(base) && finalText ? ' ' : '';
-      setField(base + sep + finalText + interimText);
+      if (isSimple) {
+        commitSimple(finalText + interimText);
+      } else {
+        const sep = needsSpace(base) && finalText ? ' ' : '';
+        ff(isMenu ? 'order_details' : 'notes', base + sep + finalText + interimText);
+      }
     };
 
     recognition.onend = () => {
       setListening(null);
       recognitionRef.current = null;
+      if (aborted) return;
       const acc = speechAccumulatedRef.current;
       const b = speechBaseRef.current;
-      const sep = needsSpace(b) && acc ? ' ' : '';
-      const raw = b + sep + acc;
-      setField(field === 'menu' ? formatAsBullets(raw) : (raw.trim() || ''));
+      if (isSimple) {
+        commitSimple(acc);
+      } else {
+        const sep = needsSpace(b) && acc ? ' ' : '';
+        const raw = b + sep + acc;
+        ff(isMenu ? 'order_details' : 'notes', isMenu ? formatAsBullets(raw) : (raw.trim() || ''));
+      }
     };
 
     recognition.onerror = (e) => {
-      if (e.error !== 'aborted') console.warn('Speech error:', e.error);
+      if (e.error === 'aborted') { aborted = true; return; }
+      console.warn('Speech error:', e.error);
       setListening(null);
       recognitionRef.current = null;
     };
@@ -199,15 +266,31 @@ export default function Home() {
     const orderToSave = { ...form, event_type: finalEventType, guest_count: form.guest_count + (guestTotal > 0 ? ` (Total: ${guestTotal})` : '') };
     const { error } = await supabase.from('orders').insert([orderToSave]);
     if (error) { alert('Error saving: ' + error.message); setSaving(false); return; }
-    let pdfBase64 = null;
+    let pdfUrl = null;
     try {
       console.log('PDF generation starting');
-      pdfBase64 = generateOrderPDF(orderToSave);
-      console.log('pdfBase64 length:', pdfBase64?.length);
+      const pdfBase64 = generateOrderPDF(orderToSave);
+      console.log('PDF generated, length:', pdfBase64?.length);
+      const pdfBlob = new Blob(
+        [Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0))],
+        { type: 'application/pdf' }
+      );
+      const fileName = `${orderToSave.order_number}.pdf`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('order-pdfs')
+        .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
+      if (uploadError) {
+        console.error('PDF upload failed:', uploadError);
+      } else {
+        console.log('PDF uploaded to storage:', uploadData);
+        const { data: urlData } = supabase.storage.from('order-pdfs').getPublicUrl(fileName);
+        pdfUrl = urlData.publicUrl;
+        console.log('PDF URL:', pdfUrl);
+      }
     } catch (pdfErr) {
-      console.error('PDF generation failed:', pdfErr);
+      console.error('PDF generation/upload failed:', pdfErr);
     }
-    await fetch('/api/send-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...orderToSave, pdfBase64 }) });
+    await fetch('/api/send-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...orderToSave, pdfUrl }) });
     setSavedOrder(orderToSave);
     setDone(true);
     setSaving(false);
@@ -224,6 +307,57 @@ export default function Home() {
 
   const isMobile = width < 640;
   const font = 'Calibri, Georgia, serif';
+
+  if (authLoading) return (
+    <main style={{minHeight:'100vh', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Calibri, Georgia, serif'}}>
+      <div style={{fontSize:'14px', color:'#aaa'}}>Loading...</div>
+    </main>
+  );
+
+  if (!session) return (
+    <main style={{minHeight:'100vh', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px', fontFamily:'Calibri, Georgia, serif'}}>
+      <div style={{background:'#ffffff', borderRadius:'16px', border:'1px solid #e8e6e0', width:'100%', maxWidth:'400px', padding:'40px 36px', boxSizing:'border-box'}}>
+        <div style={{textAlign:'center', marginBottom:'32px', paddingBottom:'24px', borderBottom:'1px solid #e8e6e0'}}>
+          <div style={{fontSize:'28px', fontWeight:'700', color:'#0f1214'}}><strong>DR Catering</strong></div>
+          <div style={{fontSize:'12px', color:'#aaa', letterSpacing:'0.05em', marginTop:'6px'}}>Catering Operating System</div>
+        </div>
+        <form onSubmit={handleSignIn}>
+          <div style={{marginBottom:'16px'}}>
+            <label style={{display:'block', fontSize:'11px', fontWeight:'600', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px'}}>Email</label>
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              value={loginEmail}
+              onChange={e => setLoginEmail(e.target.value)}
+              style={{width:'100%', padding:'11px 14px', border:'1px solid #e8e6e0', borderRadius:'10px', fontSize:'15px', color:'#0f1214', boxSizing:'border-box', outline:'none', fontFamily:'Calibri, Georgia, serif', background:'#fff'}}
+              placeholder="you@example.com"
+            />
+          </div>
+          <div style={{marginBottom:'24px'}}>
+            <label style={{display:'block', fontSize:'11px', fontWeight:'600', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px'}}>Password</label>
+            <input
+              type="password"
+              required
+              autoComplete="current-password"
+              value={loginPassword}
+              onChange={e => setLoginPassword(e.target.value)}
+              style={{width:'100%', padding:'11px 14px', border:'1px solid #e8e6e0', borderRadius:'10px', fontSize:'15px', color:'#0f1214', boxSizing:'border-box', outline:'none', fontFamily:'Calibri, Georgia, serif', background:'#fff'}}
+              placeholder="••••••••"
+            />
+          </div>
+          {loginError && <div style={{fontSize:'13px', color:'#e53e3e', marginBottom:'16px', textAlign:'center'}}>{loginError}</div>}
+          <button
+            type="submit"
+            disabled={loginLoading}
+            style={{width:'100%', background: loginLoading ? '#888' : '#0f1214', color:'#fff', borderRadius:'10px', padding:'14px', fontSize:'15px', fontWeight:'700', border:'none', cursor: loginLoading ? 'not-allowed' : 'pointer', fontFamily:'Calibri, Georgia, serif'}}
+          >
+            {loginLoading ? 'Signing in...' : 'Sign in'}
+          </button>
+        </form>
+      </div>
+    </main>
+  );
   const inputStyle = { width:'100%', padding:'11px 14px', border:'1px solid #e8e6e0', borderRadius:'10px', fontSize: isMobile ? '16px' : '15px', color:'#0f1214', boxSizing:'border-box', outline:'none', fontFamily:font, background:'#fff' };
   const labelStyle = { display:'block', fontSize:'11px', fontWeight:'600', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px', fontFamily:font };
   const sectionLabel = { fontSize:'12px', fontWeight:'700', color:'#0f1214', textTransform:'uppercase', letterSpacing:'0.08em', margin:'28px 0 16px', paddingBottom:'8px', borderBottom:'2px solid #0f1214', display:'block', fontFamily:font };
@@ -245,10 +379,16 @@ export default function Home() {
     <main style={{minHeight:'100vh', background:'#f9f8f5', padding: isMobile ? '0' : '32px 24px', fontFamily:font, boxSizing:'border-box'}}>
       <div style={{background:'#ffffff', borderRadius: isMobile ? '0' : '16px', border:'1px solid #e8e6e0', width:'100%', maxWidth:'720px', margin:'0 auto', padding: isMobile ? '20px 16px' : '40px 48px', boxSizing:'border-box'}}>
 
-        <div style={{textAlign:'center', marginBottom:'28px', paddingBottom:'24px', borderBottom:'1px solid #e8e6e0'}}>
+        <div style={{position:'relative', textAlign:'center', marginBottom:'28px', paddingBottom:'24px', borderBottom:'1px solid #e8e6e0'}}>
           <div style={{fontSize:'28px', fontWeight:'700', color:'#0f1214', fontFamily:font}}><strong>DR Catering</strong></div>
           <div style={{fontSize:'12px', color:'#aaa', letterSpacing:'0.05em', marginTop:'6px', fontFamily:font}}>Catering Operating System</div>
           <div style={{fontSize:'12px', fontWeight:'700', color:'#bbb', marginTop:'6px', fontFamily:font}}>{form.order_number}</div>
+          <button
+            onClick={handleSignOut}
+            style={{position:'absolute', top:0, right:0, background:'transparent', border:'1px solid #e8e6e0', borderRadius:'8px', padding:'5px 12px', fontSize:'12px', fontWeight:'600', color:'#888', cursor:'pointer', fontFamily:font}}
+          >
+            Sign out
+          </button>
         </div>
 
         <div style={{fontSize:'20px', fontWeight:'700', color:'#0f1214', fontFamily:font, marginBottom:'24px'}}>New Order</div>
@@ -267,6 +407,7 @@ export default function Home() {
                   <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
                     <button onClick={() => { ff('delivery_address', returnModal.lastAddress); setReturnModal(m => m.lastMenu ? { ...m, lastAddress: null } : null); }} style={{background:'#0f1214', color:'#fff', padding:'8px 16px', borderRadius:'8px', border:'none', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>Same address</button>
                     <button onClick={() => { setReturnModal(m => m.lastMenu ? { ...m, lastAddress: null } : null); }} style={{background:'#fff', color:'#0f1214', padding:'8px 16px', borderRadius:'8px', border:'1px solid #e8e6e0', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>I'll update it</button>
+
                   </div>
                 </div>
               )}
@@ -277,7 +418,7 @@ export default function Home() {
                   <div style={{fontSize:'13px', color:'#0f1214', whiteSpace:'pre-line', marginBottom:'12px', lineHeight:'1.8', maxHeight:'160px', overflowY:'auto'}}>{returnModal.lastMenu}</div>
                   <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
                     <button onClick={() => { ff('order_details', returnModal.lastMenu); setReturnModal(m => m.lastAddress ? { ...m, lastMenu: null } : null); }} style={{background:'#0f1214', color:'#fff', padding:'8px 16px', borderRadius:'8px', border:'none', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>Same menu</button>
-                    <button onClick={() => { ff('order_details', '• '); setReturnModal(m => m.lastAddress ? { ...m, lastMenu: null } : null); }} style={{background:'#fff', color:'#0f1214', padding:'8px 16px', borderRadius:'8px', border:'1px solid #e8e6e0', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>I'll update it</button>
+                    <button onClick={() => { setReturnModal(m => m.lastAddress ? { ...m, lastMenu: null } : null); }} style={{background:'#fff', color:'#0f1214', padding:'8px 16px', borderRadius:'8px', border:'1px solid #e8e6e0', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>I'll update it</button>
                   </div>
                 </div>
               )}
@@ -384,14 +525,8 @@ export default function Home() {
         </div>
 
         <div style={{marginBottom:'32px'}}>
-          <div style={{display:'flex', alignItems:'center', marginBottom:'6px'}}>
-            <label style={{...labelStyle, marginBottom:0}}>Notes <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
-            <button onClick={() => startListening('notes')} style={micBtn('notes')} title={listening === 'notes' ? 'Stop listening' : 'Voice input'}>
-              <MicIcon />
-            </button>
-          </div>
+          <label style={labelStyle}>Notes <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
           <textarea style={{...inputStyle, height:'80px', resize:'none'}} placeholder="Gate code, elevator only, call before arriving..." value={form.notes} onChange={e => ff('notes', e.target.value)}/>
-          {listening === 'notes' && <p style={{fontSize:'11px', color:'#e53e3e', margin:'4px 0 0', fontFamily:font}}>Listening...</p>}
         </div>
 
         <div style={{fontSize:'11px', color:'#bbb', marginBottom:'16px', fontFamily:font}}><span style={required}>*</span> Required fields</div>
