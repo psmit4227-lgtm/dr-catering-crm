@@ -341,11 +341,25 @@ export default function Home() {
     const orderToSave = { ...form, event_type: finalEventType, guest_count: form.guest_count + (guestTotal > 0 ? ` (Total: ${guestTotal})` : '') };
     const { error } = await supabase.from('orders').insert([orderToSave]);
     if (error) { alert('Error saving: ' + error.message); setSaving(false); return; }
-    let pdfBase64 = null;
+    let pdfUrl = null;
     try {
-      pdfBase64 = generateOrderPDF(orderToSave);
-    } catch (pdfErr) { console.error('PDF generation failed:', pdfErr); }
-    await fetch('/api/send-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...orderToSave, pdfBase64 }) });
+      const pdfBase64 = generateOrderPDF(orderToSave);
+      const pdfBlob = new Blob(
+        [Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0))],
+        { type: 'application/pdf' }
+      );
+      const fileName = `${orderToSave.order_number}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from('order-pdfs')
+        .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
+      if (uploadError) {
+        console.error('PDF upload failed:', uploadError);
+      } else {
+        const { data: urlData } = supabase.storage.from('order-pdfs').getPublicUrl(fileName);
+        pdfUrl = urlData.publicUrl;
+      }
+    } catch (pdfErr) { console.error('PDF generation/upload failed:', pdfErr); }
+    await fetch('/api/send-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...orderToSave, pdfUrl }) });
     setSavedOrder(orderToSave);
     setDone(true);
     setSaving(false);
