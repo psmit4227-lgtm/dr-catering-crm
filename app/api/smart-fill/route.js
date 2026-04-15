@@ -41,6 +41,8 @@ Fields:
   Always return in 12-hour format with AM/PM, e.g. "11:00 AM". Leave empty string if not mentioned.
   IMPORTANT: "out" always means pickupTime (leaving), "there" always means arrivalTime (arriving). Never swap them.
 - guestCount (number only, e.g. 80)
+- kitchenNotes (string): any allergy info, dietary restrictions, substitutions, or prep instructions mentioned — e.g. "nut allergy", "no pork", "extra sauce on the side". Leave empty string if none.
+- driverNotes (string): any delivery logistics mentioned — e.g. gate codes, parking instructions, floor/elevator info, "call before arriving". Leave empty string if none.
 - menuItems (array of strings): each item is a single string. If the speaker mentions a quantity, customization, modifier, or note immediately after an item, append it inline with a dash — do NOT put it in a separate field.
   Examples:
   - "10 cheeseburgers, add jalapeños" → "10 cheeseburgers - add jalapeños"

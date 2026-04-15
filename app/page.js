@@ -312,6 +312,8 @@ export default function Home() {
         setMenuItems([]);
         ff('order_details', p.menuItems.map(i => `• ${i}`).join('\n'));
       }
+      if (p.kitchenNotes) ff('kitchen_notes', p.kitchenNotes);
+      if (p.driverNotes) ff('notes', p.driverNotes);
     } catch (err) {
       setSmartFillError(err.message || 'Could not parse response. Please try again.');
     }
