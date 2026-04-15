@@ -32,7 +32,7 @@ function AuthShell({ children }) {
 
 export default function Home() {
   // ── Auth state ────────────────────────────────────────────────
-  const [screen, setScreen] = useState('loading'); // 'loading'|'login'|'mfa-enroll'|'mfa-verify'|'app'
+  const [screen, setScreen] = useState('loading'); // 'loading'|'login'|'app'
 
   // Login
   const [loginEmail, setLoginEmail] = useState('');
@@ -40,70 +40,17 @@ export default function Home() {
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
-  // MFA enroll
-  const [enrollFactorId, setEnrollFactorId] = useState('');
-  const [enrollQR, setEnrollQR] = useState('');
-  const [enrollSecret, setEnrollSecret] = useState('');
-  const [enrollCode, setEnrollCode] = useState('');
-  const [enrollError, setEnrollError] = useState('');
-  const [enrollLoading, setEnrollLoading] = useState(false);
-
-  // MFA verify
-  const [verifyFactorId, setVerifyFactorId] = useState('');
-  const [verifyChallengeId, setVerifyChallengeId] = useState('');
-  const [verifyCode, setVerifyCode] = useState('');
-  const [verifyError, setVerifyError] = useState('');
-  const [verifyLoading, setVerifyLoading] = useState(false);
-
-  // ── Auth helpers ──────────────────────────────────────────────
-  const startEnrollment = async () => {
-    const { data, error } = await supabase.auth.mfa.enroll({
-      factorType: 'totp',
-      issuer: 'DR Catering',
-      friendlyName: 'Authenticator',
-    });
-    if (error) { console.error('Enroll error:', error); return; }
-    setEnrollFactorId(data.id);
-    setEnrollQR(data.totp.qr_code);   // data URI — render as <img>
-    setEnrollSecret(data.totp.secret);
-    setScreen('mfa-enroll');
-  };
-
-  const startChallenge = async (factorId) => {
-    const { data, error } = await supabase.auth.mfa.challenge({ factorId });
-    if (error) { console.error('Challenge error:', error); return; }
-    setVerifyFactorId(factorId);
-    setVerifyChallengeId(data.id);
-    setScreen('mfa-verify');
-  };
-
-  const checkMfaStatus = async () => {
-    const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (aalData.currentLevel === 'aal2') { setScreen('app'); return; }
-
-    const { data: factorsData } = await supabase.auth.mfa.listFactors();
-    const verifiedTotp = (factorsData?.totp || []).filter(f => f.status === 'verified');
-
-    if (verifiedTotp.length > 0) {
-      await startChallenge(verifiedTotp[0].id);
-    } else {
-      await startEnrollment();
-    }
-  };
 
   // ── Auth init ─────────────────────────────────────────────────
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) { setScreen('login'); return; }
-      await checkMfaStatus();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setScreen(session ? 'app' : 'login');
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
         setScreen('login');
         setLoginEmail(''); setLoginPassword(''); setLoginError('');
-        setEnrollCode(''); setEnrollError('');
-        setVerifyCode(''); setVerifyError('');
       }
     });
     return () => subscription.unsubscribe();
@@ -116,35 +63,8 @@ export default function Home() {
     setLoginLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
     if (error) { setLoginError('Invalid email or password.'); setLoginLoading(false); return; }
-    await checkMfaStatus();
+    setScreen('app');
     setLoginLoading(false);
-  };
-
-  const handleEnrollVerify = async (e) => {
-    e.preventDefault();
-    setEnrollError('');
-    setEnrollLoading(true);
-    const { error } = await supabase.auth.mfa.challengeAndVerify({
-      factorId: enrollFactorId,
-      code: enrollCode.replace(/\s/g, ''),
-    });
-    if (error) { setEnrollError('Invalid code — try again.'); setEnrollLoading(false); return; }
-    setScreen('app');
-    setEnrollLoading(false);
-  };
-
-  const handleMfaVerify = async (e) => {
-    e.preventDefault();
-    setVerifyError('');
-    setVerifyLoading(true);
-    const { error } = await supabase.auth.mfa.verify({
-      factorId: verifyFactorId,
-      challengeId: verifyChallengeId,
-      code: verifyCode.replace(/\s/g, ''),
-    });
-    if (error) { setVerifyError('Invalid code — try again.'); setVerifyLoading(false); return; }
-    setScreen('app');
-    setVerifyLoading(false);
   };
 
   const handleSignOut = async () => { await supabase.auth.signOut(); };
@@ -153,9 +73,9 @@ export default function Home() {
   const [form, setForm] = useState({
     order_number: genOrderNum(),
     client_name: '', client_phone: '', client_email: '',
-    on_site_contact: '', event_type: '', event_type_other: '',
-    delivery_address: '', delivery_date: '', delivery_time: '',
-    guest_count: '', order_details: '• ', notes: ''
+    on_site_contact: '', on_site_phone: '', event_type: '', event_type_other: '',
+    delivery_address: '', delivery_date: '', time_out: '', delivery_time: '',
+    guest_count: '', menu_package: 'Custom', order_details: '• ', kitchen_notes: '', notes: ''
   });
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
@@ -165,10 +85,21 @@ export default function Home() {
   const [returnModal, setReturnModal] = useState(null);
   const [width, setWidth] = useState(0);
   const [guestTotal, setGuestTotal] = useState(0);
+  const [menuItems, setMenuItems] = useState([]);
   const [listening, setListening] = useState(null);
   const recognitionRef = useRef(null);
   const speechBaseRef = useRef('');
   const speechAccumulatedRef = useRef('');
+
+  // AI Smart Fill state
+  const [aiDescription, setAiDescription] = useState('');
+  const [aiPlacesQuery, setAiPlacesQuery] = useState('');
+  const [smartFillLoading, setSmartFillLoading] = useState(false);
+  const [smartFillError, setSmartFillError] = useState('');
+  const [aiMicListening, setAiMicListening] = useState(false);
+  const [googleLoaded, setGoogleLoaded] = useState(false);
+  const aiAddressInputRef = useRef(null);
+  const aiMicRef = useRef(null);
 
   useEffect(() => {
     setWidth(window.innerWidth);
@@ -179,17 +110,45 @@ export default function Home() {
 
   useEffect(() => {
     if (screen !== 'app') return;
-    supabase.from('orders').select('client_name, client_phone, client_email, delivery_address, order_details').order('created_at', { ascending: false }).then(({ data }) => {
-      if (data) {
-        const unique = [];
-        const seen = new Set();
-        data.forEach(d => {
-          if (d.client_name && !seen.has(d.client_name)) { seen.add(d.client_name); unique.push(d); }
-        });
-        setPastClients(unique);
-      }
+    fetch('/api/clients').then(r => r.json()).then(({ data }) => {
+      if (data) setPastClients(data);
     });
   }, [screen]);
+
+  // Inject spinner keyframe once
+  useEffect(() => {
+    const s = document.createElement('style');
+    s.textContent = '@keyframes ai-spin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(s);
+    return () => s.remove();
+  }, []);
+
+  // Load Google Places script
+  useEffect(() => {
+    if (screen !== 'app') return;
+    const key = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY;
+    if (!key) return;
+    if (window.google?.maps?.places) { setGoogleLoaded(true); return; }
+    window.__googlePlacesReady = () => setGoogleLoaded(true);
+    if (!document.querySelector('script[data-gp]')) {
+      const s = document.createElement('script');
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=__googlePlacesReady`;
+      s.async = true; s.setAttribute('data-gp', '1');
+      document.head.appendChild(s);
+    }
+  }, [screen]);
+
+  // Init autocomplete once Google is loaded
+  useEffect(() => {
+    if (!googleLoaded || !aiAddressInputRef.current) return;
+    const ac = new window.google.maps.places.Autocomplete(aiAddressInputRef.current, { types: ['address'] });
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace();
+      const addr = place.formatted_address || aiAddressInputRef.current.value;
+      setAiPlacesQuery(addr);
+      ff('delivery_address', addr);
+    });
+  }, [googleLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ff = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -205,12 +164,8 @@ export default function Home() {
   const selectSuggestion = async (client) => {
     setForm(f => ({ ...f, client_name: client.client_name }));
     setSuggestions([]);
-    const { data, error } = await supabase
-      .from('orders')
-      .select('client_phone, client_email, delivery_address, order_details')
-      .eq('client_name', client.client_name)
-      .order('created_at', { ascending: false })
-      .limit(1);
+    const res = await fetch(`/api/clients?name=${encodeURIComponent(client.client_name)}`);
+    const { data, error } = await res.json();
     if (error) { console.error('Error fetching last order:', error); return; }
     if (data && data[0]) {
       const last = data[0];
@@ -253,7 +208,225 @@ export default function Home() {
       .join('\n') || '• ';
   };
 
-  const simpleFields = new Set(['client_name', 'client_phone', 'client_email', 'on_site_contact', 'delivery_address', 'guest_count']);
+  const startAiListening = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { alert('Speech recognition not supported. Please use Chrome or Safari.'); return; }
+    if (aiMicListening) { aiMicRef.current?.stop(); return; }
+    if (aiMicRef.current) aiMicRef.current.abort();
+    const r = new SR();
+    aiMicRef.current = r;
+    r.continuous = true; r.interimResults = true; r.lang = 'en-US';
+    const base = aiDescription;
+    let accumulated = ''; let aborted = false;
+    r.onstart = () => setAiMicListening(true);
+    r.onresult = (e) => {
+      let final = '', interim = '';
+      for (let i = 0; i < e.results.length; i++) {
+        if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
+        else interim += e.results[i][0].transcript;
+      }
+      accumulated = final;
+      const sep = base && !base.endsWith(' ') ? ' ' : '';
+      setAiDescription(base + (base && final ? sep : '') + final + interim);
+    };
+    r.onend = () => {
+      if (aborted) return;
+      setAiMicListening(false); aiMicRef.current = null;
+      if (accumulated) {
+        const sep = base && !base.endsWith(' ') ? ' ' : '';
+        setAiDescription((base + (base ? sep : '') + accumulated).trim());
+      }
+    };
+    r.onerror = (e) => {
+      if (e.error === 'aborted') { aborted = true; return; }
+      console.warn('AI mic error:', e.error);
+      setAiMicListening(false); aiMicRef.current = null;
+    };
+    r.start();
+  };
+
+  const EVENT_TYPES = ['Corporate lunch','Birthday party','Wedding','Office catering','Private dinner','Medical office'];
+
+  const handleSmartFill = async () => {
+    if (!aiDescription.trim()) return;
+    setSmartFillLoading(true); setSmartFillError('');
+    try {
+      const res = await fetch('/api/smart-fill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: aiDescription }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      const p = data.result;
+      if (p.clientName) handleNameChange(p.clientName);
+      if (p.clientPhone) ff('client_phone', formatPhone(p.clientPhone));
+      if (p.clientEmail) ff('client_email', p.clientEmail);
+      if (p.onsiteContactName) ff('on_site_contact', p.onsiteContactName);
+      if (p.onsiteContactPhone) ff('on_site_phone', formatPhone(p.onsiteContactPhone));
+      if (p.eventType) {
+        const match = EVENT_TYPES.find(t => t.toLowerCase() === p.eventType.toLowerCase());
+        if (match) ff('event_type', match);
+        else { ff('event_type', 'Other'); ff('event_type_other', p.eventType); }
+      }
+      if (p.deliveryAddress) ff('delivery_address', p.deliveryAddress);
+      if (p.deliveryDate) ff('delivery_date', p.deliveryDate);
+      if (p.arrivalTime) ff('delivery_time', p.arrivalTime);
+      if (p.pickupTime) ff('time_out', p.pickupTime);
+      if (p.guestCount) handleGuestCount(String(p.guestCount));
+      if (p.menuItems?.length) {
+        ff('menu_package', 'Custom');
+        setMenuItems([]);
+        ff('order_details', p.menuItems.map(i => `• ${i}`).join('\n'));
+      }
+    } catch (err) {
+      setSmartFillError(err.message || 'Could not parse response. Please try again.');
+    }
+    setSmartFillLoading(false);
+  };
+
+  const CAT_SIZES = {
+    HOT:   ['Half tray', 'Full tray', '9in shallow', 'Full shallow'],
+    COLD:  ['12 inch', '14 inch', '16 inch'],
+    SALAD: ['Half salad', 'Full salad'],
+    SMALL: null,
+  };
+
+  const PACKAGE_ITEMS = {
+    'Mediterranean Sun Package': [
+      { name: 'Mediterranean Salad', cat: 'SALAD' },
+      { name: 'Chicken Skewers with Lemon Parsley Potato', cat: 'HOT' },
+      { name: 'Vegetable Skewers with Falafel', cat: 'HOT' },
+      { name: 'Beef Skewers', cat: 'HOT' },
+      { name: 'Quinoa Salad with Feta Kalamata Cherry Tomato Pickled Onion', cat: 'SALAD' },
+      { name: 'Pasta with Chick Peas', cat: 'HOT' },
+      { name: 'White Rice', cat: 'HOT' },
+      { name: 'Spanakopita', cat: 'HOT' },
+      { name: 'Tzatziki Sauce', cat: 'SMALL' },
+      { name: 'Cookies', cat: 'SMALL' },
+    ],
+    'Fiesta Del Sol (Mexican)': [
+      { name: 'Tostada Salad', cat: 'SALAD' },
+      { name: 'Guacamole', cat: 'SMALL' },
+      { name: 'Cheddar Cheese', cat: 'SMALL' },
+      { name: 'Salsa', cat: 'SMALL' },
+      { name: 'Sour Cream', cat: 'SMALL' },
+      { name: 'White Corn Tortilla Chips', cat: 'SMALL' },
+      { name: 'Soft Tacos', cat: 'SMALL' },
+      { name: 'Chipotle Chicken', cat: 'HOT' },
+      { name: 'Taco Meat', cat: 'HOT' },
+      { name: 'Lime Cilantro Rice', cat: 'HOT' },
+      { name: 'Black Beans', cat: 'HOT' },
+      { name: 'Spicy Vegetables', cat: 'HOT' },
+      { name: 'Fish Tacos', cat: 'HOT' },
+      { name: 'Cookies', cat: 'SMALL' },
+    ],
+    'Signature Cold Buffet': [
+      { name: 'Artisan Sandwiches on Focaccia', cat: 'COLD' },
+      { name: 'Gourmet Wraps', cat: 'COLD' },
+      { name: 'Fresh Salad', cat: 'SALAD' },
+      { name: 'Fruit and Nut Mix', cat: 'SMALL' },
+      { name: 'Cold Pasta Salad', cat: 'SALAD' },
+      { name: 'Tortilla Chips', cat: 'SMALL' },
+      { name: 'Cookies', cat: 'SMALL' },
+      { name: 'Brownies', cat: 'SMALL' },
+    ],
+    'Barbecue Spread': [
+      { name: 'Cobb Salad', cat: 'SALAD' },
+      { name: 'Red Potato Salad', cat: 'SALAD' },
+      { name: 'Cold Pasta Salad', cat: 'SALAD' },
+      { name: 'BBQ Chicken', cat: 'HOT' },
+      { name: 'BBQ Ribs', cat: 'HOT' },
+      { name: 'Sliders with American Cheese Lettuce Tomato Chipotle Ketchup', cat: 'HOT' },
+      { name: 'Hotdogs with Sauerkraut', cat: 'HOT' },
+      { name: 'Mac and Cheese', cat: 'HOT' },
+      { name: 'Corn On the Cob', cat: 'HOT' },
+      { name: 'Chips', cat: 'SMALL' },
+      { name: 'Cookies', cat: 'SMALL' },
+    ],
+    'Executive Package': [
+      { name: 'Salad', cat: 'SALAD' },
+      { name: 'Quinoa Salad', cat: 'SALAD' },
+      { name: 'Artisan Sandwiches', cat: 'COLD' },
+      { name: 'House-made Potato Chips', cat: 'SMALL' },
+      { name: 'Fresh Fruit Salad', cat: 'SMALL' },
+      { name: 'Cookies', cat: 'SMALL' },
+      { name: 'Brownies', cat: 'SMALL' },
+      { name: 'Soft Drinks', cat: 'SMALL' },
+    ],
+    'Italian Package': [
+      { name: 'Salad', cat: 'SALAD' },
+      { name: 'Focaccia Sandwiches', cat: 'COLD' },
+      { name: 'Tuscany Wrap', cat: 'COLD' },
+      { name: 'Vegetable Focaccia', cat: 'COLD' },
+      { name: 'Pasta', cat: 'HOT' },
+      { name: 'Chicken', cat: 'HOT' },
+      { name: 'Cookies', cat: 'SMALL' },
+    ],
+    'Hot and Cold Breakfast Buffet': [
+      { name: 'Continental Platter with Bagels Muffins Danish Croissants', cat: 'COLD' },
+      { name: 'Cream Cheese', cat: 'SMALL' },
+      { name: 'Butter', cat: 'SMALL' },
+      { name: 'Jelly', cat: 'SMALL' },
+      { name: 'Eggs', cat: 'HOT' },
+      { name: 'Bacon', cat: 'HOT' },
+      { name: 'French Toast', cat: 'HOT' },
+      { name: 'Home Fries', cat: 'HOT' },
+      { name: 'Fruit Salad', cat: 'SMALL' },
+      { name: 'Yogurt with Granola', cat: 'SMALL' },
+      { name: 'Coffee', cat: 'SMALL' },
+      { name: 'Orange Juice', cat: 'SMALL' },
+      { name: 'Milk', cat: 'SMALL' },
+      { name: 'Sugar Equal Stirrers', cat: 'SMALL' },
+    ],
+    'Cold Continental Breakfast': [
+      { name: 'Continental Platter with Bagels Muffins Danish Croissants', cat: 'COLD' },
+      { name: 'Cream Cheese', cat: 'SMALL' },
+      { name: 'Butter', cat: 'SMALL' },
+      { name: 'Jelly', cat: 'SMALL' },
+      { name: 'Fruit Salad', cat: 'SMALL' },
+      { name: 'Coffee', cat: 'SMALL' },
+      { name: 'Orange Juice', cat: 'SMALL' },
+      { name: 'Milk', cat: 'SMALL' },
+      { name: 'Sugar Equal Stirrers', cat: 'SMALL' },
+    ],
+  };
+
+  const serializeMenuItems = (items) => items.map(item => {
+    let line = `• ${item.name}`;
+    if (item.size) line += ` - ${item.size}`;
+    line += ` x${item.qty}`;
+    if (item.cat === 'SALAD' && item.size) {
+      line += item.size === 'Half salad' ? ' + half pint dressing' : ' + 1 pint dressing';
+    }
+    return line;
+  }).join('\n');
+
+  const handlePackageChange = (pkg) => {
+    ff('menu_package', pkg);
+    if (pkg === 'Custom') {
+      ff('order_details', '• ');
+      setMenuItems([]);
+    } else {
+      const items = PACKAGE_ITEMS[pkg].map(({ name, cat }) => ({
+        name, cat,
+        size: CAT_SIZES[cat] ? CAT_SIZES[cat][0] : '',
+        qty: 1,
+      }));
+      setMenuItems(items);
+      ff('order_details', serializeMenuItems(items));
+    }
+  };
+
+  const updateMenuItem = (index, field, value) => {
+    const updated = menuItems.map((item, i) =>
+      i === index ? { ...item, [field]: field === 'qty' ? parseInt(value) : value } : item
+    );
+    setMenuItems(updated);
+    ff('order_details', serializeMenuItems(updated));
+  };
+
+  const simpleFields = new Set(['client_name', 'client_phone', 'client_email', 'on_site_contact', 'on_site_phone', 'delivery_address', 'guest_count']);
 
   const startListening = (field) => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -334,13 +507,16 @@ export default function Home() {
     if (!form.client_name) { alert('Please enter client name'); return; }
     if (!form.delivery_date) { alert('Please enter delivery date'); return; }
     if (!form.delivery_address) { alert('Please enter delivery address'); return; }
+    if (!form.on_site_contact) { alert('Please enter on-site contact'); return; }
+    if (!form.on_site_phone) { alert('Please enter on-site contact phone number'); return; }
     if (!form.order_details || form.order_details === '• ') { alert('Please enter the menu'); return; }
     if (form.event_type === 'Other' && !form.event_type_other) { alert('Please specify the event type'); return; }
     setSaving(true);
     const finalEventType = form.event_type === 'Other' ? `Other: ${form.event_type_other}` : form.event_type;
     const orderToSave = { ...form, event_type: finalEventType, guest_count: form.guest_count + (guestTotal > 0 ? ` (Total: ${guestTotal})` : '') };
-    const { error } = await supabase.from('orders').insert([orderToSave]);
-    if (error) { alert('Error saving: ' + error.message); setSaving(false); return; }
+    const insertRes = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderToSave) });
+    const insertData = await insertRes.json();
+    if (insertData.error) { alert('Error saving: ' + insertData.error); setSaving(false); return; }
     let pdfUrl = null;
     try {
       const pdfBase64 = generateOrderPDF(orderToSave);
@@ -366,7 +542,7 @@ export default function Home() {
   };
 
   const reset = () => {
-    setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', event_type: '', event_type_other: '', delivery_address: '', delivery_date: '', delivery_time: '', guest_count: '', order_details: '• ', notes: '' });
+    setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', on_site_phone: '', event_type: '', event_type_other: '', delivery_address: '', delivery_date: '', time_out: '', delivery_time: '', guest_count: '', menu_package: 'Custom', order_details: '• ', kitchen_notes: '', notes: '' });
     setDone(false); setSavedOrder(null); setSuggestions([]); setReturnModal(null); setGuestTotal(0);
   };
 
@@ -397,82 +573,6 @@ export default function Home() {
     </AuthShell>
   );
 
-  if (screen === 'mfa-enroll') return (
-    <AuthShell>
-      <div style={{textAlign:'center', marginBottom:'20px'}}>
-        <div style={{fontSize:'16px', fontWeight:'700', color:'#0f1214', marginBottom:'8px', fontFamily:FONT}}>Set up two-factor authentication</div>
-        <div style={{fontSize:'13px', color:'#888', lineHeight:'1.6', fontFamily:FONT}}>Scan this QR code with Google Authenticator or any authenticator app, then enter the 6-digit code below.</div>
-      </div>
-
-      {enrollQR && (
-        <div style={{display:'flex', justifyContent:'center', marginBottom:'20px'}}>
-          <div style={{padding:'12px', background:'#fff', border:'1px solid #e8e6e0', borderRadius:'12px', display:'inline-block'}}>
-            <img src={enrollQR} alt="QR code" width="180" height="180" style={{display:'block'}}/>
-          </div>
-        </div>
-      )}
-
-      {enrollSecret && (
-        <div style={{background:'#f9f8f5', borderRadius:'10px', padding:'12px 16px', marginBottom:'20px', textAlign:'center'}}>
-          <div style={{fontSize:'10px', fontWeight:'700', color:'#aaa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'4px', fontFamily:FONT}}>Manual entry code</div>
-          <div style={{fontSize:'13px', fontWeight:'700', color:'#0f1214', letterSpacing:'0.15em', fontFamily:'monospace, monospace'}}>{enrollSecret}</div>
-        </div>
-      )}
-
-      <form onSubmit={handleEnrollVerify}>
-        <div style={{marginBottom:'20px'}}>
-          <label style={authLabel}>6-digit code from your app</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={6}
-            required
-            value={enrollCode}
-            onChange={e => setEnrollCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            style={{...authInput, fontSize:'22px', letterSpacing:'0.3em', textAlign:'center', fontFamily:'monospace, monospace'}}
-            placeholder="000000"
-          />
-        </div>
-        {enrollError && <div style={{fontSize:'13px', color:'#e53e3e', marginBottom:'16px', textAlign:'center'}}>{enrollError}</div>}
-        <button type="submit" disabled={enrollLoading || enrollCode.length < 6} style={primaryBtn(enrollLoading || enrollCode.length < 6)}>
-          {enrollLoading ? 'Verifying...' : 'Verify and enable 2FA'}
-        </button>
-      </form>
-    </AuthShell>
-  );
-
-  if (screen === 'mfa-verify') return (
-    <AuthShell>
-      <div style={{textAlign:'center', marginBottom:'24px'}}>
-        <div style={{fontSize:'32px', marginBottom:'12px'}}>🔐</div>
-        <div style={{fontSize:'16px', fontWeight:'700', color:'#0f1214', marginBottom:'8px', fontFamily:FONT}}>Enter your authentication code</div>
-        <div style={{fontSize:'13px', color:'#888', lineHeight:'1.6', fontFamily:FONT}}>Open your authenticator app and enter the 6-digit code for DR Catering.</div>
-      </div>
-
-      <form onSubmit={handleMfaVerify}>
-        <div style={{marginBottom:'20px'}}>
-          <label style={authLabel}>6-digit code</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={6}
-            required
-            autoFocus
-            value={verifyCode}
-            onChange={e => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            style={{...authInput, fontSize:'22px', letterSpacing:'0.3em', textAlign:'center', fontFamily:'monospace, monospace'}}
-            placeholder="000000"
-          />
-        </div>
-        {verifyError && <div style={{fontSize:'13px', color:'#e53e3e', marginBottom:'16px', textAlign:'center'}}>{verifyError}</div>}
-        <button type="submit" disabled={verifyLoading || verifyCode.length < 6} style={primaryBtn(verifyLoading || verifyCode.length < 6)}>
-          {verifyLoading ? 'Verifying...' : 'Verify'}
-        </button>
-      </form>
-    </AuthShell>
-  );
 
   // ── Render: app ───────────────────────────────────────────────
 
@@ -512,6 +612,105 @@ export default function Home() {
         </div>
 
         <div style={{fontSize:'20px', fontWeight:'700', color:'#0f1214', fontFamily:font, marginBottom:'24px'}}>New Order</div>
+
+        {/* ── AI Smart Fill ───────────────────────────────────── */}
+        <div style={{marginBottom:'32px'}}>
+          <div style={{fontSize:'11px', fontWeight:'700', color:'#c0392b', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:'10px', fontFamily:font}}>
+            ✦ AI Smart Fill
+          </div>
+
+          {/* Box 1: Address + Places autocomplete */}
+          <div style={{background:'#fff', borderRadius:'12px', border:'1px solid #e8e6e0', padding:'10px 14px', marginBottom:'10px', display:'flex', alignItems:'center', gap:'10px', boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}}>
+            <span style={{fontSize:'17px', flexShrink:0, userSelect:'none', lineHeight:1}}>📍</span>
+            <input
+              ref={aiAddressInputRef}
+              style={{flex:1, border:'none', outline:'none', fontSize: isMobile ? '16px' : '15px', color:'#0f1214', fontFamily:font, background:'transparent', padding:'4px 0'}}
+              placeholder="Please enter the delivery address"
+              value={aiPlacesQuery}
+              onChange={e => setAiPlacesQuery(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+
+          {/* Box 2: Event description + mic + chips + Smart Fill button */}
+          <div style={{background:'#fff', borderRadius:'12px', border:'1px solid #e8e6e0', padding:'12px 14px', boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}}>
+            <div style={{display:'flex', gap:'10px'}}>
+              <span style={{fontSize:'17px', flexShrink:0, marginTop:'3px', userSelect:'none', lineHeight:1}}>💡</span>
+              <div style={{flex:1, position:'relative'}}>
+                <textarea
+                  style={{width:'100%', border:'none', outline:'none', resize:'none', height:'96px', fontSize: isMobile ? '16px' : '15px', color:'#0f1214', fontFamily:font, background:'transparent', lineHeight:'1.6', paddingRight:'38px', boxSizing:'border-box'}}
+                  placeholder={"I'm booking a corporate lunch for 80 people on Friday at noon, client is John Smith, 973-555-1234..."}
+                  value={aiDescription}
+                  onChange={e => setAiDescription(e.target.value)}
+                />
+                <button
+                  onClick={startAiListening}
+                  title={aiMicListening ? 'Stop listening' : 'Voice input'}
+                  style={{
+                    position:'absolute', bottom:'4px', right:'0px',
+                    background: aiMicListening ? '#e53e3e' : '#f0efeb',
+                    color: aiMicListening ? '#fff' : '#555',
+                    border:'none', borderRadius:'50%', width:'30px', height:'30px',
+                    cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
+                    transition:'background 0.15s', flexShrink:0,
+                  }}
+                >
+                  <MicIcon />
+                </button>
+              </div>
+            </div>
+
+            {/* Hint chips */}
+            <div style={{display:'flex', flexWrap:'wrap', gap:'5px', marginTop:'10px', paddingLeft:'27px'}}>
+              {[
+                ['Client Name',   /\b([A-Z][a-z]+ [A-Z][a-z]+)/.test(aiDescription) || /\b(client|customer)\s+(is\s+)?\S/i.test(aiDescription)],
+                ['Phone',         /(\d{3}[-.\s]?\d{3}[-.\s]?\d{4}|\(\d{3}\)\s?\d{3})/.test(aiDescription)],
+                ['Date & Time',   /\b(mon|tue|wed|thu|fri|sat|sun|today|tomorrow|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2}\/\d{1,2}|noon|midnight|\d{1,2}:\d{2}|\d{1,2}\s*(am|pm))\b/i.test(aiDescription)],
+                ['Guest Count',   /\b\d+\s*(people|guests|pax|persons|attendees|heads)\b/i.test(aiDescription) || /\bfor\s+\d+\b/i.test(aiDescription)],
+                ['Menu',          /\b(menu|lunch|dinner|breakfast|food|catering|buffet|package|sandwich|pizza|pasta|taco|bbq|salad|burger|wrap|cuisine)\b/i.test(aiDescription)],
+                ['On-site Contact', /\b(on.?site|contact is|will receive|greet)\b/i.test(aiDescription)],
+                ['Email',         /\b[\w.+-]+@[\w-]+\.\w+\b/.test(aiDescription)],
+              ].map(([label, active]) => (
+                <span key={label} style={{
+                  fontSize:'11px', fontWeight:'600', padding:'3px 9px',
+                  borderRadius:'20px', border:'1px solid',
+                  borderColor: active ? '#22a05e' : '#e0dfdb',
+                  background: active ? '#e8f8f0' : '#f5f4f0',
+                  color: active ? '#22a05e' : '#bbb',
+                  transition:'all 0.2s', fontFamily:font, lineHeight:'1.6',
+                }}>
+                  ● {label}
+                </span>
+              ))}
+            </div>
+
+            {/* Smart Fill button row */}
+            <div style={{display:'flex', justifyContent:'flex-end', alignItems:'center', gap:'10px', marginTop:'12px'}}>
+              {smartFillError && (
+                <span style={{fontSize:'12px', color:'#e53e3e', fontFamily:font}}>{smartFillError}</span>
+              )}
+              <button
+                onClick={handleSmartFill}
+                disabled={smartFillLoading || !aiDescription.trim()}
+                style={{
+                  background: (!aiDescription.trim() || smartFillLoading) ? '#aaa' : '#c0392b',
+                  color:'#fff', border:'none', borderRadius:'10px',
+                  padding:'10px 20px', fontSize:'14px', fontWeight:'700',
+                  cursor: (!aiDescription.trim() || smartFillLoading) ? 'not-allowed' : 'pointer',
+                  fontFamily:font, display:'flex', alignItems:'center', gap:'8px',
+                  transition:'background 0.15s', letterSpacing:'0.01em',
+                }}
+              >
+                {smartFillLoading ? (
+                  <>
+                    <span style={{width:'13px', height:'13px', border:'2px solid rgba(255,255,255,0.35)', borderTopColor:'#fff', borderRadius:'50%', display:'inline-block', animation:'ai-spin 0.8s linear infinite'}} />
+                    Filling…
+                  </>
+                ) : 'Smart Fill →'}
+              </button>
+            </div>
+          </div>
+        </div>
 
         {returnModal && (
           <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center', padding:'16px'}}
@@ -577,9 +776,15 @@ export default function Home() {
         </div>
 
         <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'16px', marginBottom:'18px'}}>
-          <div>
-            <label style={labelStyle}>On-site contact <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
-            <input style={inputStyle} placeholder="Who will receive the order?" value={form.on_site_contact} onChange={e => ff('on_site_contact', e.target.value)}/>
+          <div style={{display:'flex', flexDirection:'column', gap:'16px'}}>
+            <div>
+              <label style={labelStyle}>On-site contact <span style={required}>*</span></label>
+              <input style={inputStyle} placeholder="Who will receive the order?" value={form.on_site_contact} onChange={e => ff('on_site_contact', e.target.value)}/>
+            </div>
+            <div>
+              <label style={labelStyle}>On-site contact phone number <span style={required}>*</span></label>
+              <input style={inputStyle} type="tel" placeholder="201-555-0000" value={form.on_site_phone} onChange={e => ff('on_site_phone', formatPhone(e.target.value))}/>
+            </div>
           </div>
           <div>
             <label style={labelStyle}>Event type</label>
@@ -610,13 +815,17 @@ export default function Home() {
           <input style={inputStyle} placeholder="Full address" value={form.delivery_address} onChange={e => ff('delivery_address', e.target.value)}/>
         </div>
 
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'18px'}}>
+        <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap:'16px', marginBottom:'18px'}}>
           <div>
             <label style={labelStyle}>Delivery date <span style={required}>*</span></label>
             <input style={inputStyle} type="date" value={form.delivery_date} onChange={e => ff('delivery_date', e.target.value)}/>
           </div>
           <div>
-            <label style={labelStyle}>Delivery time</label>
+            <label style={labelStyle}>Time out</label>
+            <input style={inputStyle} type="time" value={form.time_out} onChange={e => ff('time_out', e.target.value)}/>
+          </div>
+          <div>
+            <label style={labelStyle}>Time there</label>
             <input style={inputStyle} type="time" value={form.delivery_time} onChange={e => ff('delivery_time', e.target.value)}/>
           </div>
         </div>
@@ -628,23 +837,81 @@ export default function Home() {
           <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0', fontFamily:font}}>Use + to separate groups</p>
         </div>
 
-        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:'12px', fontWeight:'700', color:'#0f1214', textTransform:'uppercase', letterSpacing:'0.08em', margin:'28px 0 16px', paddingBottom:'8px', borderBottom:'2px solid #0f1214', fontFamily:font}}>
-          <span>Menu <span style={required}>*</span></span>
-          <button onClick={() => startListening('menu')} style={micBtn('menu')} title={listening === 'menu' ? 'Stop listening' : 'Voice input'}>
-            <MicIcon />
-          </button>
+        <div style={{marginBottom:'18px'}}>
+          <label style={labelStyle}>Menu package</label>
+          <select style={inputStyle} value={form.menu_package} onChange={e => handlePackageChange(e.target.value)}>
+            <option value="Custom">Custom</option>
+            <option>Mediterranean Sun Package</option>
+            <option>Fiesta Del Sol (Mexican)</option>
+            <option>Signature Cold Buffet</option>
+            <option>Barbecue Spread</option>
+            <option>Executive Package</option>
+            <option>Italian Package</option>
+            <option>Hot and Cold Breakfast Buffet</option>
+            <option>Cold Continental Breakfast</option>
+          </select>
         </div>
 
-        <div style={{marginBottom:'20px'}}>
-          <textarea style={{...inputStyle, height:'200px', resize:'none', lineHeight:'1.8'}} value={form.order_details} onChange={handleMenu} onKeyDown={handleMenuKey}/>
-          {listening === 'menu'
-            ? <p style={{fontSize:'11px', color:'#e53e3e', margin:'4px 0 0', fontFamily:font}}>Listening... say "next" to start a new item</p>
-            : <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0', fontFamily:font}}>Press Enter or tap mic to add items</p>
-          }
+        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:'12px', fontWeight:'700', color:'#0f1214', textTransform:'uppercase', letterSpacing:'0.08em', margin:'0 0 16px', paddingBottom:'8px', borderBottom:'2px solid #0f1214', fontFamily:font}}>
+          <span>Menu <span style={required}>*</span></span>
+          {form.menu_package === 'Custom' && (
+            <button onClick={() => startListening('menu')} style={micBtn('menu')} title={listening === 'menu' ? 'Stop listening' : 'Voice input'}>
+              <MicIcon />
+            </button>
+          )}
+        </div>
+
+        {form.menu_package === 'Custom' ? (
+          <div style={{marginBottom:'18px'}}>
+            <textarea style={{...inputStyle, height:'200px', resize:'none', lineHeight:'1.8'}} value={form.order_details} onChange={handleMenu} onKeyDown={handleMenuKey}/>
+            {listening === 'menu'
+              ? <p style={{fontSize:'11px', color:'#e53e3e', margin:'4px 0 0', fontFamily:font}}>Listening... say "next" to start a new item</p>
+              : <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0', fontFamily:font}}>Press Enter or tap mic to add items</p>
+            }
+          </div>
+        ) : (
+          <div style={{marginBottom:'18px', border:'1px solid #e8e6e0', borderRadius:'12px', overflow:'hidden'}}>
+            {/* Column headers */}
+            <div style={{display:'grid', gridTemplateColumns:'1fr 148px 68px', gap:'8px', padding:'8px 14px 8px 16px', background:'#f9f8f5', borderBottom:'1px solid #e8e6e0'}}>
+              <div style={{fontSize:'10px', fontWeight:'700', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', fontFamily:font}}>Item</div>
+              <div style={{fontSize:'10px', fontWeight:'700', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', fontFamily:font}}>Size</div>
+              <div style={{fontSize:'10px', fontWeight:'700', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', fontFamily:font, textAlign:'center'}}>Qty</div>
+            </div>
+            {menuItems.map((item, i) => (
+              <div key={i} style={{display:'grid', gridTemplateColumns:'1fr 148px 68px', gap:'8px', padding:'10px 14px 10px 16px', alignItems:'center', borderBottom: i < menuItems.length - 1 ? '1px solid #f0efeb' : 'none', background:'#fff'}}>
+                <div style={{fontSize:'14px', fontWeight:'500', color:'#0f1214', fontFamily:font, lineHeight:'1.35', minWidth:0}}>{item.name}</div>
+                <div>
+                  {CAT_SIZES[item.cat] ? (
+                    <select
+                      value={item.size}
+                      onChange={e => updateMenuItem(i, 'size', e.target.value)}
+                      style={{width:'100%', minHeight:'44px', padding:'8px 10px', border:'1px solid #e8e6e0', borderRadius:'8px', fontSize:'13px', color:'#0f1214', fontFamily:font, background:'#fff', outline:'none'}}
+                    >
+                      {CAT_SIZES[item.cat].map(s => <option key={s}>{s}</option>)}
+                    </select>
+                  ) : (
+                    <div style={{fontSize:'12px', color:'#ccc', fontFamily:font, textAlign:'center', padding:'4px 0'}}>—</div>
+                  )}
+                </div>
+                <select
+                  value={item.qty}
+                  onChange={e => updateMenuItem(i, 'qty', e.target.value)}
+                  style={{width:'100%', minHeight:'44px', padding:'8px 4px', border:'1px solid #e8e6e0', borderRadius:'8px', fontSize:'15px', fontWeight:'600', color:'#0f1214', fontFamily:font, background:'#fff', outline:'none', textAlign:'center'}}
+                >
+                  {[1,2,3,4].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{marginBottom:'18px'}}>
+          <label style={labelStyle}>Additional notes for kitchen <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
+          <textarea style={{...inputStyle, height:'80px', resize:'none'}} placeholder="Allergy notes, substitutions, prep instructions..." value={form.kitchen_notes} onChange={e => ff('kitchen_notes', e.target.value)}/>
         </div>
 
         <div style={{marginBottom:'32px'}}>
-          <label style={labelStyle}>Notes <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
+          <label style={labelStyle}>Special instructions for driver <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
           <textarea style={{...inputStyle, height:'80px', resize:'none'}} placeholder="Gate code, elevator only, call before arriving..." value={form.notes} onChange={e => ff('notes', e.target.value)}/>
         </div>
 
