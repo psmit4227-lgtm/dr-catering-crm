@@ -579,6 +579,8 @@ export default function Home() {
   const reset = () => {
     setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', on_site_phone: '', event_type: '', event_type_other: '', delivery_address: '', delivery_date: '', time_out: '', delivery_time: '', guest_count: '', menu_package: 'Custom', order_details: '• ', kitchen_notes: '', notes: '' });
     setDone(false); setSavedOrder(null); setSuggestions([]); setReturnModal(null); setGuestTotal(0);
+    setAiPlacesQuery(''); setAiDescription(''); setAiMicProcessing(false); setSmartFillError('');
+    clearTimeout(aiAutoFillTimerRef.current);
   };
 
   // ── Render: auth screens ──────────────────────────────────────
