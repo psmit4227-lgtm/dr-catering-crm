@@ -188,10 +188,16 @@ export default function Home() {
   const handleGuestCount = (val) => {
     const cleaned = val.replace(/[^0-9+a-zA-Z ]/g, '');
     ff('guest_count', cleaned);
-    const segments = cleaned.split('+');
-    let total = 0;
-    segments.forEach(seg => { const num = seg.trim().match(/^\d+/); if (num) total += parseInt(num[0]); });
-    setGuestTotal(total);
+    // "including" means the sub-groups are a SUBSET of the total — only count the first number
+    if (/\bincluding\b/i.test(cleaned)) {
+      const first = cleaned.match(/^\d+/);
+      setGuestTotal(first ? parseInt(first[0]) : 0);
+    } else {
+      // "+" means additional groups — sum all numbers
+      let total = 0;
+      cleaned.split('+').forEach(seg => { const n = seg.trim().match(/^\d+/); if (n) total += parseInt(n[0]); });
+      setGuestTotal(total);
+    }
   };
 
   const handleMenu = (e) => {
