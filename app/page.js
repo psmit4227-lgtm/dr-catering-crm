@@ -862,6 +862,11 @@ export default function Home() {
           <input style={inputStyle} placeholder="e.g. Hackensack University Medical Center, 30 Prospect Ave, Hackensack NJ 07601" value={form.delivery_address} onChange={e => ff('delivery_address', e.target.value)}/>
         </div>
 
+        <div style={{marginBottom:'18px'}}>
+          <label style={labelStyle}>Special instructions for driver <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
+          <textarea style={{...inputStyle, height:'80px', resize:'none'}} placeholder="Gate code, elevator only, call before arriving..." value={form.notes} onChange={e => ff('notes', e.target.value)}/>
+        </div>
+
         <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap:'16px', marginBottom:'18px'}}>
           <div>
             <label style={labelStyle}>Delivery date <span style={required}>*</span></label>
@@ -955,11 +960,6 @@ export default function Home() {
         <div style={{marginBottom:'18px'}}>
           <label style={labelStyle}>Additional notes for kitchen <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
           <textarea style={{...inputStyle, height:'80px', resize:'none'}} placeholder="Allergy notes, substitutions, prep instructions..." value={form.kitchen_notes} onChange={e => ff('kitchen_notes', e.target.value)}/>
-        </div>
-
-        <div style={{marginBottom:'32px'}}>
-          <label style={labelStyle}>Special instructions for driver <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
-          <textarea style={{...inputStyle, height:'80px', resize:'none'}} placeholder="Gate code, elevator only, call before arriving..." value={form.notes} onChange={e => ff('notes', e.target.value)}/>
         </div>
 
         <div style={{fontSize:'11px', color:'#bbb', marginBottom:'16px', fontFamily:font}}><span style={required}>*</span> Required fields</div>
