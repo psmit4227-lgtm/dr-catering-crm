@@ -111,6 +111,17 @@ function buildPDF(order) {
   const maxContactLines = Math.max(addressLines.length, contactLines.length);
   y += maxContactLines > 1 ? maxContactLines * 4.5 + 3 : 8;
 
+  // ── 7b. Special instructions for driver (below address) ─────────
+  if (order.notes && order.notes.trim()) {
+    setLabel();
+    doc.text("SPECIAL INSTRUCTIONS FOR DRIVER", margin, y);
+    y += 4;
+    setValue();
+    const driverLines = doc.splitTextToSize(order.notes.trim(), contentWidth);
+    doc.text(driverLines, margin, y);
+    y += driverLines.length * 4.5 + 3;
+  }
+
   // ── 8. Number of guests ─────────────────────────────────────────
   setLabel();
   doc.text("NUMBER OF GUESTS", margin, y);

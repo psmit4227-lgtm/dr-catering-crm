@@ -859,7 +859,7 @@ export default function Home() {
 
         <div style={{marginBottom:'18px'}}>
           <label style={labelStyle}>Delivery address <span style={required}>*</span></label>
-          <input style={inputStyle} placeholder="Full address" value={form.delivery_address} onChange={e => ff('delivery_address', e.target.value)}/>
+          <input style={inputStyle} placeholder="e.g. Hackensack University Medical Center, 30 Prospect Ave, Hackensack NJ 07601" value={form.delivery_address} onChange={e => ff('delivery_address', e.target.value)}/>
         </div>
 
         <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap:'16px', marginBottom:'18px'}}>
