@@ -97,9 +97,11 @@ export default function Home() {
   const [smartFillLoading, setSmartFillLoading] = useState(false);
   const [smartFillError, setSmartFillError] = useState('');
   const [aiMicListening, setAiMicListening] = useState(false);
+  const [aiMicProcessing, setAiMicProcessing] = useState(false);
   const [googleLoaded, setGoogleLoaded] = useState(false);
   const aiAddressInputRef = useRef(null);
   const aiMicRef = useRef(null);
+  const aiAutoFillTimerRef = useRef(null);
 
   useEffect(() => {
     setWidth(window.innerWidth);
@@ -211,7 +213,12 @@ export default function Home() {
   const startAiListening = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { alert('Speech recognition not supported. Please use Chrome or Safari.'); return; }
-    if (aiMicListening) { aiMicRef.current?.stop(); return; }
+    // If already listening, stop manually (no auto-fill on manual stop)
+    if (aiMicListening) {
+      clearTimeout(aiAutoFillTimerRef.current);
+      aiMicRef.current?.stop();
+      return;
+    }
     if (aiMicRef.current) aiMicRef.current.abort();
     const r = new SR();
     aiMicRef.current = r;
@@ -232,9 +239,17 @@ export default function Home() {
     r.onend = () => {
       if (aborted) return;
       setAiMicListening(false); aiMicRef.current = null;
-      if (accumulated) {
-        const sep = base && !base.endsWith(' ') ? ' ' : '';
-        setAiDescription((base + (base ? sep : '') + accumulated).trim());
+      const finalText = accumulated
+        ? (base + (base && !base.endsWith(' ') ? ' ' : '') + accumulated).trim()
+        : base;
+      if (accumulated) setAiDescription(finalText);
+      // Auto-trigger Smart Fill after 1.5s if there's text
+      if (finalText.trim()) {
+        setAiMicProcessing(true);
+        aiAutoFillTimerRef.current = setTimeout(() => {
+          setAiMicProcessing(false);
+          handleSmartFill(finalText);
+        }, 1500);
       }
     };
     r.onerror = (e) => {
@@ -264,14 +279,15 @@ export default function Home() {
     return String(h).padStart(2, '0') + ':' + m;
   };
 
-  const handleSmartFill = async () => {
-    if (!aiDescription.trim()) return;
+  const handleSmartFill = async (textOverride) => {
+    const text = typeof textOverride === 'string' ? textOverride : aiDescription;
+    if (!text.trim()) return;
     setSmartFillLoading(true); setSmartFillError('');
     try {
       const res = await fetch('/api/smart-fill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: aiDescription }),
+        body: JSON.stringify({ description: text }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -674,6 +690,11 @@ export default function Home() {
                 >
                   <MicIcon />
                 </button>
+                {aiMicProcessing && (
+                  <div style={{position:'absolute', bottom:'-20px', right:'0px', fontSize:'11px', color:'#c0392b', fontFamily:font, fontWeight:'600', whiteSpace:'nowrap'}}>
+                    Processing…
+                  </div>
+                )}
               </div>
             </div>
 
@@ -708,12 +729,12 @@ export default function Home() {
               )}
               <button
                 onClick={handleSmartFill}
-                disabled={smartFillLoading || !aiDescription.trim()}
+                disabled={smartFillLoading || aiMicProcessing || !aiDescription.trim()}
                 style={{
-                  background: (!aiDescription.trim() || smartFillLoading) ? '#aaa' : '#c0392b',
+                  background: (!aiDescription.trim() || smartFillLoading || aiMicProcessing) ? '#aaa' : '#c0392b',
                   color:'#fff', border:'none', borderRadius:'10px',
                   padding:'10px 20px', fontSize:'14px', fontWeight:'700',
-                  cursor: (!aiDescription.trim() || smartFillLoading) ? 'not-allowed' : 'pointer',
+                  cursor: (!aiDescription.trim() || smartFillLoading || aiMicProcessing) ? 'not-allowed' : 'pointer',
                   fontFamily:font, display:'flex', alignItems:'center', gap:'8px',
                   transition:'background 0.15s', letterSpacing:'0.01em',
                 }}

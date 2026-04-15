@@ -34,7 +34,12 @@ Fields:
 - arrivalTime: the time we ARRIVE at the venue — indicated by words like "arriving", "arrive", "there at", "delivery at", "set up by". Always return in 12-hour format with AM/PM, e.g. "11:00 AM". Leave empty string if not mentioned.
 - pickupTime: the time we LEAVE the venue — indicated by words like "out by", "pickup at", "leaving at", "done by", "wrap up by". Always return in 12-hour format with AM/PM, e.g. "2:00 PM". Leave empty string if not mentioned.
 - guestCount (number only, e.g. 80)
-- menuItems (array of strings)
+- menuItems (array of strings): each item is a single string. If the speaker mentions a quantity, customization, modifier, or note immediately after an item, append it inline with a dash — do NOT put it in a separate field.
+  Examples:
+  - "10 cheeseburgers, add jalapeños" → "10 cheeseburgers - add jalapeños"
+  - "20 caesar salads, no croutons" → "20 caesar salads - no croutons"
+  - "50 chicken marsala, extra sauce on the side" → "50 chicken marsala - extra sauce on the side"
+  - "30 veggie wraps" → "30 veggie wraps"
 
 Time formatting rules:
 - Always include AM or PM explicitly — never return a bare number like "3" or "11"
