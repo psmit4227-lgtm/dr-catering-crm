@@ -31,8 +31,15 @@ Fields:
 - eventType (string, e.g. "Corporate lunch")
 - deliveryAddress (full address string)
 - deliveryDate (YYYY-MM-DD format, leave empty if unclear)
-- arrivalTime: the time we ARRIVE at the venue — indicated by words like "arriving", "arrive", "there at", "delivery at", "set up by". Always return in 12-hour format with AM/PM, e.g. "11:00 AM". Leave empty string if not mentioned.
-- pickupTime: the time we LEAVE the venue — indicated by words like "out by", "pickup at", "leaving at", "done by", "wrap up by". Always return in 12-hour format with AM/PM, e.g. "2:00 PM". Leave empty string if not mentioned.
+- arrivalTime: the time we ARRIVE at the venue (time there). Triggered by:
+    • "X there" or "there at X" — e.g. "2pm there", "there at 11am"
+    • "arriving X", "arrive at X", "delivery at X", "set up by X"
+  Always return in 12-hour format with AM/PM, e.g. "2:00 PM". Leave empty string if not mentioned.
+- pickupTime: the time we LEAVE / must be OUT of the venue (time out). Triggered by:
+    • "X out" or "out at X" or "out by X" — e.g. "11am out", "out by 2pm"
+    • "leaving at X", "done by X", "wrap up by X", "pickup at X"
+  Always return in 12-hour format with AM/PM, e.g. "11:00 AM". Leave empty string if not mentioned.
+  IMPORTANT: "out" always means pickupTime (leaving), "there" always means arrivalTime (arriving). Never swap them.
 - guestCount (number only, e.g. 80)
 - menuItems (array of strings): each item is a single string. If the speaker mentions a quantity, customization, modifier, or note immediately after an item, append it inline with a dash — do NOT put it in a separate field.
   Examples:
@@ -47,9 +54,13 @@ Time formatting rules:
 - Use 12-hour clock — e.g. "2:00 PM" not "14:00"
 
 Examples:
-- "arriving 11am, out by 2pm" → arrivalTime: "11:00 AM", pickupTime: "2:00 PM"
+- "arriving 11am, out by 2pm"  → arrivalTime: "11:00 AM", pickupTime: "2:00 PM"
 - "there at 12:30, done by 3pm" → arrivalTime: "12:30 PM", pickupTime: "3:00 PM"
-- "delivery at noon, out by 2" → arrivalTime: "12:00 PM", pickupTime: "2:00 PM"
+- "delivery at noon, out by 2"  → arrivalTime: "12:00 PM", pickupTime: "2:00 PM"
+- "11am out, 2pm there"         → arrivalTime: "2:00 PM",  pickupTime: "11:00 AM"
+- "2pm there, 5pm out"          → arrivalTime: "2:00 PM",  pickupTime: "5:00 PM"
+- "11:00 am out"                → arrivalTime: "",          pickupTime: "11:00 AM"
+- "2:00 pm there"               → arrivalTime: "2:00 PM",  pickupTime: ""
 
 Inquiry: ${description}`,
           },
