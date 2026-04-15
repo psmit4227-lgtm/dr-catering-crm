@@ -247,16 +247,20 @@ export default function Home() {
 
   const EVENT_TYPES = ['Corporate lunch','Birthday party','Wedding','Office catering','Private dinner','Medical office'];
 
-  // Convert "11:00 AM" / "2:00 PM" / "14:00" → "HH:MM" for <input type="time">
+  // Convert 12-hour "11:00 AM" / "2:00 PM" → 24-hour "11:00" / "14:00"
+  // required by <input type="time"> which stores HH:MM internally
+  // (the browser then displays it in the user's locale format, e.g. 12-hour with AM/PM)
   const to24h = (t) => {
     if (!t) return '';
-    const match = t.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+    // Match optional minutes: "2 PM", "2:00 PM", "14:00"
+    const match = t.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/i);
     if (!match) return '';
     let h = parseInt(match[1], 10);
-    const m = match[2];
+    const m = match[2] || '00';
     const period = (match[3] || '').toUpperCase();
-    if (period === 'PM' && h !== 12) h += 12;
-    if (period === 'AM' && h === 12) h = 0;
+    if (period === 'PM' && h !== 12) h += 12;   // 2 PM → 14
+    if (period === 'AM' && h === 12) h = 0;      // 12 AM → 00 (midnight)
+    // If no AM/PM given, treat as already 24-hour (pass through)
     return String(h).padStart(2, '0') + ':' + m;
   };
 

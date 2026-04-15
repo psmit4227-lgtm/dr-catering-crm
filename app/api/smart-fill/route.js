@@ -31,13 +31,20 @@ Fields:
 - eventType (string, e.g. "Corporate lunch")
 - deliveryAddress (full address string)
 - deliveryDate (YYYY-MM-DD format, leave empty if unclear)
-- arrivalTime: the time we ARRIVE at the venue — indicated by words like "arriving", "arrive", "there at", "delivery at", "set up by". Format as h:MM AM/PM, e.g. "11:00 AM". Leave empty if unclear.
-- pickupTime: the time we LEAVE the venue — indicated by words like "out by", "pickup at", "leaving at", "done by", "wrap up by". Format as h:MM AM/PM, e.g. "2:00 PM". Leave empty if unclear.
+- arrivalTime: the time we ARRIVE at the venue — indicated by words like "arriving", "arrive", "there at", "delivery at", "set up by". Always return in 12-hour format with AM/PM, e.g. "11:00 AM". Leave empty string if not mentioned.
+- pickupTime: the time we LEAVE the venue — indicated by words like "out by", "pickup at", "leaving at", "done by", "wrap up by". Always return in 12-hour format with AM/PM, e.g. "2:00 PM". Leave empty string if not mentioned.
 - guestCount (number only, e.g. 80)
 - menuItems (array of strings)
 
-Example: "arriving 11am, out by 2pm" → arrivalTime: "11:00 AM", pickupTime: "2:00 PM"
-Example: "set up by 12:30, out by 3" → arrivalTime: "12:30 PM", pickupTime: "3:00 PM"
+Time formatting rules:
+- Always include AM or PM explicitly — never return a bare number like "3" or "11"
+- Always include minutes — e.g. "11:00 AM" not "11 AM"
+- Use 12-hour clock — e.g. "2:00 PM" not "14:00"
+
+Examples:
+- "arriving 11am, out by 2pm" → arrivalTime: "11:00 AM", pickupTime: "2:00 PM"
+- "there at 12:30, done by 3pm" → arrivalTime: "12:30 PM", pickupTime: "3:00 PM"
+- "delivery at noon, out by 2" → arrivalTime: "12:00 PM", pickupTime: "2:00 PM"
 
 Inquiry: ${description}`,
           },
