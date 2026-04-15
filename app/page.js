@@ -247,6 +247,19 @@ export default function Home() {
 
   const EVENT_TYPES = ['Corporate lunch','Birthday party','Wedding','Office catering','Private dinner','Medical office'];
 
+  // Convert "11:00 AM" / "2:00 PM" / "14:00" → "HH:MM" for <input type="time">
+  const to24h = (t) => {
+    if (!t) return '';
+    const match = t.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+    if (!match) return '';
+    let h = parseInt(match[1], 10);
+    const m = match[2];
+    const period = (match[3] || '').toUpperCase();
+    if (period === 'PM' && h !== 12) h += 12;
+    if (period === 'AM' && h === 12) h = 0;
+    return String(h).padStart(2, '0') + ':' + m;
+  };
+
   const handleSmartFill = async () => {
     if (!aiDescription.trim()) return;
     setSmartFillLoading(true); setSmartFillError('');
@@ -271,8 +284,8 @@ export default function Home() {
       }
       if (p.deliveryAddress) ff('delivery_address', p.deliveryAddress);
       if (p.deliveryDate) ff('delivery_date', p.deliveryDate);
-      if (p.arrivalTime) ff('delivery_time', p.arrivalTime);
-      if (p.pickupTime) ff('time_out', p.pickupTime);
+      if (p.arrivalTime) ff('delivery_time', to24h(p.arrivalTime));
+      if (p.pickupTime) ff('time_out', to24h(p.pickupTime));
       if (p.guestCount) handleGuestCount(String(p.guestCount));
       if (p.menuItems?.length) {
         ff('menu_package', 'Custom');

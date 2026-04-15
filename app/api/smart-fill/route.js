@@ -20,7 +20,26 @@ export async function POST(req) {
         messages: [
           {
             role: 'user',
-            content: `Extract the following fields from this catering inquiry and return a single JSON object. Use empty string "" for missing text fields, 0 for missing numeric fields, and [] for missing arrays. Fields: clientName (string), clientPhone (digits and hyphens only, e.g. 973-555-1234), clientEmail (string), onsiteContactName (string), onsiteContactPhone (digits and hyphens only), eventType (string, e.g. "Corporate lunch"), deliveryAddress (full address string), deliveryDate (YYYY-MM-DD format, leave empty if unclear), arrivalTime (HH:MM 24-hour format, leave empty if unclear), pickupTime (HH:MM 24-hour format, leave empty if unclear), guestCount (number only, e.g. 80), menuItems (array of strings).\n\nInquiry: ${description}`,
+            content: `Extract the following fields from this catering inquiry and return a single JSON object. Use empty string "" for missing text fields, 0 for missing numeric fields, and [] for missing arrays.
+
+Fields:
+- clientName (string)
+- clientPhone (digits and hyphens only, e.g. 973-555-1234)
+- clientEmail (string)
+- onsiteContactName (string)
+- onsiteContactPhone (digits and hyphens only)
+- eventType (string, e.g. "Corporate lunch")
+- deliveryAddress (full address string)
+- deliveryDate (YYYY-MM-DD format, leave empty if unclear)
+- arrivalTime: the time we ARRIVE at the venue — indicated by words like "arriving", "arrive", "there at", "delivery at", "set up by". Format as h:MM AM/PM, e.g. "11:00 AM". Leave empty if unclear.
+- pickupTime: the time we LEAVE the venue — indicated by words like "out by", "pickup at", "leaving at", "done by", "wrap up by". Format as h:MM AM/PM, e.g. "2:00 PM". Leave empty if unclear.
+- guestCount (number only, e.g. 80)
+- menuItems (array of strings)
+
+Example: "arriving 11am, out by 2pm" → arrivalTime: "11:00 AM", pickupTime: "2:00 PM"
+Example: "set up by 12:30, out by 3" → arrivalTime: "12:30 PM", pickupTime: "3:00 PM"
+
+Inquiry: ${description}`,
           },
         ],
       }),
