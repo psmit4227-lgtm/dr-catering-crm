@@ -307,7 +307,7 @@ export default function Home() {
       if (p.deliveryDate) ff('delivery_date', p.deliveryDate);
       if (p.arrivalTime) ff('delivery_time', to24h(p.arrivalTime));
       if (p.pickupTime) ff('time_out', to24h(p.pickupTime));
-      if (p.guestCount) handleGuestCount(String(p.guestCount));
+      if (p.guestCount && p.guestCount !== '0') handleGuestCount(String(p.guestCount));
       if (p.menuItems?.length) {
         ff('menu_package', 'Custom');
         setMenuItems([]);

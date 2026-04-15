@@ -40,8 +40,13 @@ Fields:
     • "leaving at X", "done by X", "wrap up by X", "pickup at X"
   Always return in 12-hour format with AM/PM, e.g. "11:00 AM". Leave empty string if not mentioned.
   IMPORTANT: "out" always means pickupTime (leaving), "there" always means arrivalTime (arriving). Never swap them.
-- guestCount (number only, e.g. 80)
-- kitchenNotes (string): any allergy info, dietary restrictions, substitutions, or prep instructions mentioned — e.g. "nut allergy", "no pork", "extra sauce on the side". Leave empty string if none.
+- guestCount (string): if all guests are the same, just return the number e.g. "80". If the speaker mentions dietary groups or sub-groups, return a + separated breakdown with labels, e.g. "80+10 vegetarian+5 gluten free". Each segment starts with the count followed by an optional label. Leave empty string if not mentioned.
+  Examples:
+  - "80 guests" → "80"
+  - "10 guests including 3 vegetarian and 3 gluten free" → "10+3 vegetarian+3 gluten free"
+  - "50 people, 5 vegan, 2 nut allergy" → "50+5 vegan+2 nut allergy"
+  - "40 guests plus 6 kids" → "40+6 kids"
+- kitchenNotes (string): any allergy info, dietary restrictions, substitutions, or prep instructions mentioned — e.g. "nut allergy", "no pork", "extra sauce on the side". Always include dietary sub-groups here too (e.g. "3 vegetarian, 3 gluten free") even if already captured in guestCount, so the kitchen has a clear note. Leave empty string if none.
 - driverNotes (string): any delivery logistics mentioned — e.g. gate codes, parking instructions, floor/elevator info, "call before arriving". Leave empty string if none.
 - menuItems (array of strings): each item is a single string. If the speaker mentions a quantity, customization, modifier, or note immediately after an item, append it inline with a dash — do NOT put it in a separate field.
   Examples:
