@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { generateOrderPDF, downloadOrderPDF } from './pdf';
+import Navigation from './components/Navigation';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -628,7 +629,9 @@ export default function Home() {
   const required = { color:'#e53e3e', marginLeft:'3px' };
 
   if (done) return (
-    <main style={{minHeight:'100vh', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px', fontFamily:font}}>
+    <>
+    <Navigation />
+    <main style={{minHeight:'calc(100vh - 44px)', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px', fontFamily:font}}>
       <div style={{background:'#ffffff', borderRadius:'16px', border:'1px solid #e8e6e0', width:'100%', maxWidth:'600px', margin:'0 auto', padding:'36px', textAlign:'center', boxSizing:'border-box'}}>
         <div style={{fontSize:'48px', marginBottom:'16px'}}>✓</div>
         <h2 style={{fontSize:'22px', fontWeight:'700', color:'#0f1214', margin:'0 0 8px', fontFamily:font}}>Order sent to kitchen</h2>
@@ -637,22 +640,17 @@ export default function Home() {
         <button onClick={reset} style={{background:'#0f1214', color:'#fff', borderRadius:'10px', padding:'13px 28px', fontSize:'14px', fontWeight:'600', border:'none', cursor:'pointer', fontFamily:font}}>New order</button>
       </div>
     </main>
+    </>
   );
 
   return (
-    <main style={{minHeight:'100vh', background:'#f9f8f5', padding: isMobile ? '0' : '32px 24px', fontFamily:font, boxSizing:'border-box'}}>
+    <>
+    <Navigation />
+    <main style={{minHeight:'calc(100vh - 44px)', background:'#f9f8f5', padding: isMobile ? '0' : '32px 24px', fontFamily:font, boxSizing:'border-box'}}>
       <div style={{background:'#ffffff', borderRadius: isMobile ? '0' : '16px', border:'1px solid #e8e6e0', width:'100%', maxWidth:'720px', margin:'0 auto', padding: isMobile ? '20px 16px' : '40px 48px', boxSizing:'border-box'}}>
 
-        <div style={{position:'relative', textAlign:'center', marginBottom:'28px', paddingBottom:'24px', borderBottom:'1px solid #e8e6e0'}}>
-          <div style={{fontSize:'28px', fontWeight:'700', color:'#0f1214', fontFamily:font}}><strong>DR Catering</strong></div>
-          <div style={{fontSize:'12px', color:'#aaa', letterSpacing:'0.05em', marginTop:'6px', fontFamily:font}}>Catering Operating System</div>
-          <div style={{fontSize:'12px', fontWeight:'700', color:'#bbb', marginTop:'6px', fontFamily:font}}>{form.order_number}</div>
-          <button
-            onClick={handleSignOut}
-            style={{position:'absolute', top:0, right:0, background:'transparent', border:'1px solid #e8e6e0', borderRadius:'8px', padding:'5px 12px', fontSize:'12px', fontWeight:'600', color:'#888', cursor:'pointer', fontFamily:font}}
-          >
-            Sign out
-          </button>
+        <div style={{textAlign:'center', marginBottom:'24px', paddingBottom:'20px', borderBottom:'1px solid #e8e6e0'}}>
+          <div style={{fontSize:'12px', fontWeight:'700', color:'#bbb', fontFamily:font}}>{form.order_number}</div>
         </div>
 
         <div style={{fontSize:'20px', fontWeight:'700', color:'#0f1214', fontFamily:font, marginBottom:'24px'}}>New Order</div>
@@ -972,5 +970,6 @@ export default function Home() {
 
       </div>
     </main>
+    </>
   );
 }
