@@ -213,9 +213,9 @@ export default function Home() {
   const startAiListening = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { alert('Speech recognition not supported. Please use Chrome or Safari.'); return; }
-    // If already listening, stop manually (no auto-fill on manual stop)
+    // User clicked stop manually — suppress auto-fill, let them review text first
     if (aiMicListening) {
-      clearTimeout(aiAutoFillTimerRef.current);
+      aiMicRef.current._manualStop = true;
       aiMicRef.current?.stop();
       return;
     }
@@ -238,13 +238,14 @@ export default function Home() {
     };
     r.onend = () => {
       if (aborted) return;
+      const wasManual = r._manualStop === true;
       setAiMicListening(false); aiMicRef.current = null;
       const finalText = accumulated
         ? (base + (base && !base.endsWith(' ') ? ' ' : '') + accumulated).trim()
         : base;
       if (accumulated) setAiDescription(finalText);
-      // Auto-trigger Smart Fill after 1.5s if there's text
-      if (finalText.trim()) {
+      // Only auto-trigger on natural silence — not when user clicked stop
+      if (!wasManual && finalText.trim()) {
         setAiMicProcessing(true);
         aiAutoFillTimerRef.current = setTimeout(() => {
           setAiMicProcessing(false);
