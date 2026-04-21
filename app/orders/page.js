@@ -9,21 +9,12 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-const FONT = 'Calibri, Georgia, serif';
-
-const EVENT_COLORS = {
-  'Corporate lunch': { bg: '#e8f0fe', text: '#1a56db', border: '#c7d7fc' },
-  'Birthday party':  { bg: '#fce8ff', text: '#9333ea', border: '#e8c4f7' },
-  'Wedding':         { bg: '#fce8ef', text: '#be185d', border: '#f7c4d5' },
-  'Office catering': { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0' },
-  'Private dinner':  { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa' },
-  'Medical office':  { bg: '#e0f7fa', text: '#0e7490', border: '#a5f3fc' },
-  'Other':           { bg: '#f5f5f5', text: '#525252', border: '#e5e5e5' },
-};
-
-function eventColor(type) {
-  return EVENT_COLORS[type] || EVENT_COLORS['Other'];
-}
+const FONT     = 'Georgia, serif';
+const BG       = '#f5f0e8';
+const ESPRESSO = '#1e1008';
+const GOLD     = '#c9a84c';
+const TEXT_SEC = '#8b6914';
+const SHADOW   = '0 4px 12px rgba(30,16,8,0.08)';
 
 function fmtDate(d) {
   if (!d) return '—';
@@ -73,22 +64,22 @@ export default function OrdersPage() {
   });
 
   if (screen === 'loading') return (
-    <main style={{ minHeight:'100vh', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:FONT }}>
-      <div style={{ fontSize:14, color:'#aaa' }}>Loading...</div>
+    <main style={{ minHeight:'100vh', background: BG, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:FONT }}>
+      <div style={{ fontSize:14, color: TEXT_SEC }}>Loading...</div>
     </main>
   );
 
   return (
     <>
       <Navigation />
-      <main className="page-main" style={{ minHeight:'calc(100vh - 44px)', background:'#f9f8f5', padding:'32px 24px', fontFamily:FONT, boxSizing:'border-box' }}>
+      <main className="page-main" style={{ minHeight:'calc(100vh - 45px)', background: BG, padding:'32px 24px', fontFamily:FONT, boxSizing:'border-box' }}>
         <div style={{ maxWidth:880, margin:'0 auto' }}>
 
           {/* Header row */}
-          <div className="orders-header" style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:12, marginBottom:24 }}>
+          <div className="orders-header" style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:12, marginBottom:28 }}>
             <div>
-              <div style={{ fontSize:22, fontWeight:700, color:'#0f1214', fontFamily:FONT }}>Orders History</div>
-              <div style={{ fontSize:13, color:'#888', marginTop:4, fontFamily:FONT }}>
+              <div style={{ fontSize:22, fontWeight:700, color: ESPRESSO, fontFamily:FONT, letterSpacing:'0.04em' }}>Orders History</div>
+              <div style={{ fontSize:13, color: TEXT_SEC, marginTop:4, fontFamily:FONT }}>
                 {filtered.length} order{filtered.length !== 1 ? 's' : ''}
               </div>
             </div>
@@ -99,8 +90,8 @@ export default function OrdersPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{
-                padding:'10px 16px', border:'1px solid #e8e6e0', borderRadius:10,
-                fontSize:14, color:'#0f1214', background:'#fff', outline:'none',
+                padding:'10px 16px', border:'1px solid #c9a84c', borderRadius:12,
+                fontSize:14, color: ESPRESSO, background:'#fff', outline:'none',
                 fontFamily:FONT, width:280, boxSizing:'border-box',
               }}
             />
@@ -108,13 +99,12 @@ export default function OrdersPage() {
 
           {/* Order list */}
           {filtered.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'60px 0', color:'#bbb', fontFamily:FONT, fontSize:14 }}>
+            <div style={{ textAlign:'center', padding:'60px 0', color: TEXT_SEC, fontFamily:FONT, fontSize:14 }}>
               {search ? 'No orders match your search.' : 'No orders yet.'}
             </div>
           ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               {filtered.map(order => {
-                const col    = eventColor(order.event_type);
                 const isOpen = expanded === order.id;
                 const label  = order.event_type === 'Other' && order.event_type_other
                   ? order.event_type_other
@@ -124,31 +114,32 @@ export default function OrdersPage() {
                   <div
                     key={order.id}
                     style={{
-                      background:'#fff', borderRadius:12, border:'1px solid #e8e6e0',
-                      overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,0.04)',
+                      background:'#fff', borderRadius:16, border:'1px solid #e8dfc8',
+                      overflow:'hidden', boxShadow: SHADOW,
                     }}
                   >
                     {/* Collapsed row */}
                     <div
+                      className="card-hover"
                       onClick={() => setExpanded(isOpen ? null : order.id)}
                       style={{ padding:'14px 18px', cursor:'pointer', display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}
                     >
                       {/* Order # + client */}
                       <div style={{ flexShrink:0, minWidth:160 }}>
-                        <div style={{ fontSize:10, fontWeight:700, color:'#bbb', fontFamily:FONT, marginBottom:2, letterSpacing:'0.05em' }}>
+                        <div style={{ fontSize:10, fontWeight:700, color: TEXT_SEC, fontFamily:FONT, marginBottom:3, letterSpacing:'0.06em' }}>
                           {order.order_number}
                         </div>
-                        <div style={{ fontSize:15, fontWeight:700, color:'#0f1214', fontFamily:FONT }}>
+                        <div style={{ fontSize:16, fontWeight:700, color: ESPRESSO, fontFamily:FONT }}>
                           {order.client_name || '—'}
                         </div>
                       </div>
 
-                      {/* Event badge */}
+                      {/* Event badge — gold pill */}
                       {label && (
                         <span style={{
                           fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:20,
-                          background:col.bg, color:col.text, border:`1px solid ${col.border}`,
-                          fontFamily:FONT, whiteSpace:'nowrap', flexShrink:0,
+                          background:'#faf5e8', color: TEXT_SEC, border:`1px solid ${GOLD}`,
+                          fontFamily:FONT, whiteSpace:'nowrap', flexShrink:0, letterSpacing:'0.04em',
                         }}>
                           {label}
                         </span>
@@ -157,27 +148,27 @@ export default function OrdersPage() {
                       {/* Right-side stats */}
                       <div style={{ display:'flex', gap:20, flex:1, justifyContent:'flex-end', alignItems:'center', flexWrap:'wrap' }}>
                         <div style={{ textAlign:'right', flexShrink:0 }}>
-                          <div style={{ fontSize:10, fontWeight:600, color:'#aaa', fontFamily:FONT, textTransform:'uppercase', letterSpacing:'0.04em' }}>Date</div>
-                          <div style={{ fontSize:13, fontWeight:600, color:'#0f1214', fontFamily:FONT }}>{fmtDate(order.delivery_date)}</div>
+                          <div style={{ fontSize:10, fontWeight:700, color: GOLD, fontFamily:FONT, textTransform:'uppercase', letterSpacing:'0.06em' }}>Date</div>
+                          <div style={{ fontSize:13, fontWeight:600, color: ESPRESSO, fontFamily:FONT }}>{fmtDate(order.delivery_date)}</div>
                         </div>
                         <div style={{ textAlign:'right', flexShrink:0 }}>
-                          <div style={{ fontSize:10, fontWeight:600, color:'#aaa', fontFamily:FONT, textTransform:'uppercase', letterSpacing:'0.04em' }}>Guests</div>
-                          <div style={{ fontSize:13, fontWeight:600, color:'#0f1214', fontFamily:FONT }}>{order.guest_count || '—'}</div>
+                          <div style={{ fontSize:10, fontWeight:700, color: GOLD, fontFamily:FONT, textTransform:'uppercase', letterSpacing:'0.06em' }}>Guests</div>
+                          <div style={{ fontSize:13, fontWeight:600, color: ESPRESSO, fontFamily:FONT }}>{order.guest_count || '—'}</div>
                         </div>
-                        <div style={{ fontSize:13, color:'#ccc', fontFamily:FONT, flexShrink:0 }}>{isOpen ? '▲' : '▼'}</div>
+                        <div style={{ fontSize:13, color:'#c9a84c', fontFamily:FONT, flexShrink:0 }}>{isOpen ? '▲' : '▼'}</div>
                       </div>
                     </div>
 
                     {/* Address preview (collapsed only) */}
                     {!isOpen && order.delivery_address && (
-                      <div style={{ padding:'0 18px 12px', fontSize:12, color:'#888', fontFamily:FONT }}>
+                      <div style={{ padding:'0 18px 12px', fontSize:12, color: TEXT_SEC, fontFamily:FONT }}>
                         📍 {order.delivery_address}
                       </div>
                     )}
 
                     {/* Expanded details */}
                     {isOpen && (
-                      <div style={{ borderTop:'1px solid #f0eeea', padding:20, background:'#faf9f7' }}>
+                      <div style={{ borderTop:`1px solid #e8dfc8`, padding:20, background:'#faf5e8' }}>
 
                         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(170px, 1fr))', gap:16, marginBottom:16 }}>
                           <DetailBlock label="Delivery Address" value={order.delivery_address} />
@@ -193,16 +184,19 @@ export default function OrdersPage() {
                           } />
                         </div>
 
+                        {/* Gold divider */}
+                        <div style={{ height:1, background: GOLD, opacity:0.3, marginBottom:16 }} />
+
                         {order.order_details && (
                           <div style={{ marginBottom:14 }}>
-                            <div style={{ fontSize:10, fontWeight:700, color:'#aaa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6, fontFamily:FONT }}>Menu</div>
-                            <div style={{ background:'#fff', borderRadius:8, border:'1px solid #e8e6e0', padding:'12px 14px', fontFamily:FONT }}>
+                            <div style={{ fontSize:10, fontWeight:700, color: GOLD, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:6, fontFamily:FONT }}>Menu</div>
+                            <div style={{ background:'#fff', borderRadius:10, border:`1px solid #e8dfc8`, padding:'12px 14px', fontFamily:FONT }}>
                               {order.menu_package && order.menu_package !== 'Custom' && (
-                                <div style={{ fontSize:11, fontWeight:700, color:'#c0392b', marginBottom:6, fontFamily:FONT }}>
+                                <div style={{ fontSize:11, fontWeight:700, color: GOLD, marginBottom:6, fontFamily:FONT, letterSpacing:'0.04em' }}>
                                   Package: {order.menu_package}
                                 </div>
                               )}
-                              <div style={{ fontSize:13, color:'#0f1214', whiteSpace:'pre-wrap', lineHeight:1.7, fontFamily:FONT }}>
+                              <div style={{ fontSize:13, color: ESPRESSO, whiteSpace:'pre-wrap', lineHeight:1.7, fontFamily:FONT }}>
                                 {order.order_details}
                               </div>
                             </div>
@@ -232,10 +226,10 @@ export default function OrdersPage() {
 function DetailBlock({ label, value, pre }) {
   return (
     <div>
-      <div style={{ fontSize:10, fontWeight:700, color:'#aaa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4, fontFamily:FONT }}>
+      <div style={{ fontSize:10, fontWeight:700, color: GOLD, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:4, fontFamily: FONT }}>
         {label}
       </div>
-      <div style={{ fontSize:13, color:'#0f1214', fontFamily:FONT, lineHeight:1.6, whiteSpace: pre ? 'pre-wrap' : 'normal' }}>
+      <div style={{ fontSize:13, color: '#1e1008', fontFamily: FONT, lineHeight:1.6, whiteSpace: pre ? 'pre-wrap' : 'normal' }}>
         {value || '—'}
       </div>
     </div>

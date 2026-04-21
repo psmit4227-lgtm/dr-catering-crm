@@ -11,19 +11,19 @@ const supabase = createClient(
 
 const genOrderNum = () => 'DRC-' + String(Math.floor(Math.random() * 9000) + 1000);
 
-const FONT = 'Calibri, Georgia, serif';
-const cardStyle = { background:'#ffffff', borderRadius:'16px', border:'1px solid #e8e6e0', width:'100%', boxSizing:'border-box' };
-const authInput = { width:'100%', padding:'11px 14px', border:'1px solid #e8e6e0', borderRadius:'10px', fontSize:'15px', color:'#0f1214', boxSizing:'border-box', outline:'none', fontFamily:FONT, background:'#fff' };
-const authLabel = { display:'block', fontSize:'11px', fontWeight:'600', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px', fontFamily:FONT };
-const primaryBtn = (disabled) => ({ width:'100%', background: disabled ? '#bbb' : '#0f1214', color:'#fff', borderRadius:'10px', padding:'14px', fontSize:'15px', fontWeight:'700', border:'none', cursor: disabled ? 'not-allowed' : 'pointer', fontFamily:FONT });
+const FONT = 'Georgia, serif';
+const cardStyle = { background:'#ffffff', borderRadius:'16px', border:'1px solid #e8dfc8', width:'100%', boxSizing:'border-box', boxShadow:'0 4px 12px rgba(30,16,8,0.08)' };
+const authInput = { width:'100%', padding:'11px 14px', border:'1px solid #c9a84c', borderRadius:'12px', fontSize:'15px', color:'#1e1008', boxSizing:'border-box', outline:'none', fontFamily:FONT, background:'#fff' };
+const authLabel = { display:'block', fontSize:'11px', fontWeight:'600', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'6px', fontFamily:FONT };
+const primaryBtn = (disabled) => ({ width:'100%', background: disabled ? '#b5a58a' : '#1e1008', color: disabled ? '#fff' : '#c9a84c', borderRadius:'12px', padding:'14px', fontSize:'15px', fontWeight:'700', border:'none', cursor: disabled ? 'not-allowed' : 'pointer', fontFamily:FONT, letterSpacing:'0.05em' });
 
 function AuthShell({ children }) {
   return (
-    <main style={{minHeight:'100vh', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px', fontFamily:FONT}}>
+    <main style={{minHeight:'100vh', background:'#f5f0e8', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px', fontFamily:FONT}}>
       <div style={{...cardStyle, maxWidth:'400px', padding:'40px 36px'}}>
-        <div style={{textAlign:'center', marginBottom:'32px', paddingBottom:'24px', borderBottom:'1px solid #e8e6e0'}}>
-          <div style={{fontSize:'28px', fontWeight:'700', color:'#0f1214', fontFamily:FONT}}><strong>DR Catering</strong></div>
-          <div style={{fontSize:'12px', color:'#aaa', letterSpacing:'0.05em', marginTop:'6px', fontFamily:FONT}}>Catering Operating System</div>
+        <div style={{textAlign:'center', marginBottom:'32px', paddingBottom:'24px', borderBottom:'1px solid #e8dfc8'}}>
+          <div style={{fontSize:'20px', fontWeight:'700', color:'#1e1008', fontFamily:FONT, letterSpacing:'4px', textTransform:'uppercase'}}>DR Catering</div>
+          <div style={{fontSize:'11px', color:'#8b6914', letterSpacing:'0.1em', marginTop:'6px', fontFamily:FONT, textTransform:'uppercase'}}>Catering Operating System</div>
         </div>
         {children}
       </div>
@@ -538,8 +538,8 @@ export default function Home() {
   );
 
   const micBtn = (field) => ({
-    background: listening === field ? '#e53e3e' : '#f0efeb',
-    color: listening === field ? '#fff' : '#555',
+    background: listening === field ? '#c0392b' : '#e8dfc8',
+    color: listening === field ? '#fff' : '#8b6914',
     border: 'none', borderRadius: '50%',
     width: '30px', height: '30px', cursor: 'pointer',
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -594,8 +594,8 @@ export default function Home() {
   // ── Render: auth screens ──────────────────────────────────────
 
   if (screen === 'loading') return (
-    <main style={{minHeight:'100vh', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:FONT}}>
-      <div style={{fontSize:'14px', color:'#aaa'}}>Loading...</div>
+    <main style={{minHeight:'100vh', background:'#f5f0e8', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:FONT}}>
+      <div style={{fontSize:'14px', color:'#8b6914'}}>Loading...</div>
     </main>
   );
 
@@ -623,21 +623,30 @@ export default function Home() {
 
   const isMobile = width < 640;
   const font = FONT;
-  const inputStyle = { width:'100%', padding:'11px 14px', border:'1px solid #e8e6e0', borderRadius:'10px', fontSize: isMobile ? '16px' : '15px', color:'#0f1214', boxSizing:'border-box', outline:'none', fontFamily:font, background:'#fff' };
-  const labelStyle = { display:'block', fontSize:'11px', fontWeight:'600', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px', fontFamily:font };
-  const sectionLabel = { fontSize:'12px', fontWeight:'700', color:'#0f1214', textTransform:'uppercase', letterSpacing:'0.08em', margin:'28px 0 16px', paddingBottom:'8px', borderBottom:'2px solid #0f1214', display:'block', fontFamily:font };
-  const required = { color:'#e53e3e', marginLeft:'3px' };
+  const inputStyle = { width:'100%', padding:'11px 14px', border:'1px solid #c9a84c', borderRadius:'12px', fontSize: isMobile ? '16px' : '15px', color:'#1e1008', boxSizing:'border-box', outline:'none', fontFamily:font, background:'#fff' };
+  const labelStyle = { display:'block', fontSize:'11px', fontWeight:'600', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'6px', fontFamily:font };
+  const sectionDivider = (label, action) => (
+    <div style={{display:'flex', alignItems:'center', gap:10, margin:'28px 0 16px'}}>
+      <div style={{width:16, height:1, background:'#c9a84c', flexShrink:0}}/>
+      <span style={{fontSize:11, fontWeight:700, color:'#c9a84c', textTransform:'uppercase', letterSpacing:'0.15em', fontFamily:font, whiteSpace:'nowrap', flexShrink:0}}>{label}</span>
+      <div style={{flex:1, height:1, background:'#c9a84c'}}/>
+      {action && <div style={{flexShrink:0}}>{action}</div>}
+    </div>
+  );
+  const required = { color:'#c0392b', marginLeft:'3px' };
 
   if (done) return (
     <>
     <Navigation />
-    <main style={{minHeight:'calc(100vh - 44px)', background:'#f9f8f5', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px', fontFamily:font}}>
-      <div style={{background:'#ffffff', borderRadius:'16px', border:'1px solid #e8e6e0', width:'100%', maxWidth:'600px', margin:'0 auto', padding:'36px', textAlign:'center', boxSizing:'border-box'}}>
-        <div style={{fontSize:'48px', marginBottom:'16px'}}>✓</div>
-        <h2 style={{fontSize:'22px', fontWeight:'700', color:'#0f1214', margin:'0 0 8px', fontFamily:font}}>Order sent to kitchen</h2>
-        <div style={{display:'inline-block', background:'#f0f0f0', borderRadius:'8px', padding:'6px 16px', fontSize:'13px', fontWeight:'700', color:'#0f1214', marginBottom:'12px', fontFamily:font}}>{savedOrder?.order_number}</div>
-        <p style={{fontSize:'14px', color:'#888', margin:'0 0 28px', fontFamily:font}}>Order for {savedOrder?.client_name} has been saved and emailed.</p>
-        <button onClick={reset} style={{background:'#0f1214', color:'#fff', borderRadius:'10px', padding:'13px 28px', fontSize:'14px', fontWeight:'600', border:'none', cursor:'pointer', fontFamily:font, width: isMobile ? '100%' : 'auto'}}>New order</button>
+    <main style={{minHeight:'calc(100vh - 45px)', background:'#f5f0e8', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px', fontFamily:font}}>
+      <div style={{background:'#ffffff', borderRadius:'16px', border:'1px solid #e8dfc8', width:'100%', maxWidth:'600px', margin:'0 auto', padding:'36px', textAlign:'center', boxSizing:'border-box', boxShadow:'0 4px 12px rgba(30,16,8,0.08)'}}>
+        <div style={{width:'56px', height:'56px', borderRadius:'50%', background:'#1e1008', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px'}}>
+          <span style={{fontSize:'22px', color:'#c9a84c'}}>✓</span>
+        </div>
+        <h2 style={{fontSize:'22px', fontWeight:'700', color:'#1e1008', margin:'0 0 8px', fontFamily:font, letterSpacing:'0.04em'}}>Order Sent to Kitchen</h2>
+        <div style={{display:'inline-block', background:'#faf5e8', border:'1px solid #c9a84c', borderRadius:'8px', padding:'6px 16px', fontSize:'13px', fontWeight:'700', color:'#8b6914', marginBottom:'12px', fontFamily:font, letterSpacing:'0.06em'}}>{savedOrder?.order_number}</div>
+        <p style={{fontSize:'14px', color:'#8b6914', margin:'0 0 28px', fontFamily:font}}>Order for {savedOrder?.client_name} has been saved and emailed.</p>
+        <button onClick={reset} style={{background:'#1e1008', color:'#c9a84c', borderRadius:'12px', padding:'13px 28px', fontSize:'14px', fontWeight:'700', border:'none', cursor:'pointer', fontFamily:font, letterSpacing:'0.05em', width: isMobile ? '100%' : 'auto'}}>New Order</button>
       </div>
     </main>
     </>
@@ -646,27 +655,27 @@ export default function Home() {
   return (
     <>
     <Navigation />
-    <main style={{minHeight:'calc(100vh - 44px)', background:'#f9f8f5', padding: isMobile ? '0' : '32px 24px', fontFamily:font, boxSizing:'border-box'}}>
-      <div style={{background:'#ffffff', borderRadius: isMobile ? '0' : '16px', border:'1px solid #e8e6e0', width:'100%', maxWidth:'720px', margin:'0 auto', padding: isMobile ? '20px 16px' : '40px 48px', boxSizing:'border-box'}}>
+    <main style={{minHeight:'calc(100vh - 45px)', background:'#f5f0e8', padding: isMobile ? '0' : '32px 24px', fontFamily:font, boxSizing:'border-box'}}>
+      <div style={{background:'#ffffff', borderRadius: isMobile ? '0' : '16px', border:'1px solid #e8dfc8', width:'100%', maxWidth:'720px', margin:'0 auto', padding: isMobile ? '20px 16px' : '40px 48px', boxSizing:'border-box', boxShadow: isMobile ? 'none' : '0 4px 12px rgba(30,16,8,0.08)'}}>
 
-        <div style={{textAlign:'center', marginBottom:'24px', paddingBottom:'20px', borderBottom:'1px solid #e8e6e0'}}>
-          <div style={{fontSize:'12px', fontWeight:'700', color:'#bbb', fontFamily:font}}>{form.order_number}</div>
+        <div style={{textAlign:'center', marginBottom:'24px', paddingBottom:'20px', borderBottom:'1px solid #e8dfc8'}}>
+          <div style={{fontSize:'11px', fontWeight:'700', color:'#c9a84c', fontFamily:font, letterSpacing:'0.1em', textTransform:'uppercase'}}>{form.order_number}</div>
         </div>
 
-        <div style={{fontSize:'20px', fontWeight:'700', color:'#0f1214', fontFamily:font, marginBottom:'24px'}}>New Order</div>
+        <div style={{fontSize:'20px', fontWeight:'700', color:'#1e1008', fontFamily:font, marginBottom:'24px', letterSpacing:'0.04em'}}>New Order</div>
 
         {/* ── AI Smart Fill ───────────────────────────────────── */}
         <div style={{marginBottom:'32px'}}>
-          <div style={{fontSize:'11px', fontWeight:'700', color:'#c0392b', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:'10px', fontFamily:font}}>
+          <div style={{fontSize:'11px', fontWeight:'700', color:'#c9a84c', textTransform:'uppercase', letterSpacing:'0.12em', marginBottom:'10px', fontFamily:font}}>
             ✦ AI Smart Fill
           </div>
 
           {/* Box 1: Address + Places autocomplete */}
-          <div style={{background:'#fff', borderRadius:'12px', border:'1px solid #e8e6e0', padding:'10px 14px', marginBottom:'10px', display:'flex', alignItems:'center', gap:'10px', boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}}>
+          <div style={{background:'#faf5e8', borderRadius:'12px', border:'1px solid #c9a84c', padding:'10px 14px', marginBottom:'10px', display:'flex', alignItems:'center', gap:'10px', boxShadow:'0 2px 8px rgba(30,16,8,0.05)'}}>
             <span style={{fontSize:'17px', flexShrink:0, userSelect:'none', lineHeight:1}}>📍</span>
             <input
               ref={aiAddressInputRef}
-              style={{flex:1, border:'none', outline:'none', fontSize: isMobile ? '16px' : '15px', color:'#0f1214', fontFamily:font, background:'transparent', padding:'4px 0'}}
+              style={{flex:1, border:'none', outline:'none', fontSize: isMobile ? '16px' : '15px', color:'#1e1008', fontFamily:font, background:'transparent', padding:'4px 0'}}
               placeholder="Please enter the delivery address"
               value={aiPlacesQuery}
               onChange={e => setAiPlacesQuery(e.target.value)}
@@ -675,12 +684,12 @@ export default function Home() {
           </div>
 
           {/* Box 2: Event description + mic + chips + Smart Fill button */}
-          <div style={{background:'#fff', borderRadius:'12px', border:'1px solid #e8e6e0', padding:'12px 14px', boxShadow:'0 1px 4px rgba(0,0,0,0.04)'}}>
+          <div style={{background:'#faf5e8', borderRadius:'12px', border:'1px solid #c9a84c', padding:'12px 14px', boxShadow:'0 2px 8px rgba(30,16,8,0.05)'}}>
             <div style={{display:'flex', gap:'10px'}}>
               <span style={{fontSize:'17px', flexShrink:0, marginTop:'3px', userSelect:'none', lineHeight:1}}>💡</span>
               <div style={{flex:1, position:'relative'}}>
                 <textarea
-                  style={{width:'100%', border:'none', outline:'none', resize:'none', height:'96px', fontSize: isMobile ? '16px' : '15px', color:'#0f1214', fontFamily:font, background:'transparent', lineHeight:'1.6', paddingRight:'38px', boxSizing:'border-box'}}
+                  style={{width:'100%', border:'none', outline:'none', resize:'none', height:'96px', fontSize: isMobile ? '16px' : '15px', color:'#1e1008', fontFamily:font, background:'transparent', lineHeight:'1.6', paddingRight:'38px', boxSizing:'border-box'}}
                   placeholder={"I'm booking a corporate lunch for 80 people on Friday at noon, client is John Smith, 973-555-1234..."}
                   value={aiDescription}
                   onChange={e => setAiDescription(e.target.value)}
@@ -690,8 +699,8 @@ export default function Home() {
                   title={aiMicListening ? 'Stop listening' : 'Voice input'}
                   style={{
                     position:'absolute', bottom:'4px', right:'0px',
-                    background: aiMicListening ? '#e53e3e' : '#f0efeb',
-                    color: aiMicListening ? '#fff' : '#555',
+                    background: aiMicListening ? '#c0392b' : '#e8dfc8',
+                    color: aiMicListening ? '#fff' : '#8b6914',
                     border:'none', borderRadius:'50%', width:'30px', height:'30px',
                     cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
                     transition:'background 0.15s', flexShrink:0,
@@ -700,7 +709,7 @@ export default function Home() {
                   <MicIcon />
                 </button>
                 {aiMicProcessing && (
-                  <div style={{position:'absolute', bottom:'-20px', right:'0px', fontSize:'11px', color:'#c0392b', fontFamily:font, fontWeight:'600', whiteSpace:'nowrap'}}>
+                  <div style={{position:'absolute', bottom:'-20px', right:'0px', fontSize:'11px', color:'#c9a84c', fontFamily:font, fontWeight:'600', whiteSpace:'nowrap'}}>
                     Processing…
                   </div>
                 )}
@@ -721,9 +730,9 @@ export default function Home() {
                 <span key={label} style={{
                   fontSize:'11px', fontWeight:'600', padding:'3px 9px',
                   borderRadius:'20px', border:'1px solid',
-                  borderColor: active ? '#22a05e' : '#e0dfdb',
-                  background: active ? '#e8f8f0' : '#f5f4f0',
-                  color: active ? '#22a05e' : '#bbb',
+                  borderColor: active ? '#c9a84c' : '#e8dfc8',
+                  background: active ? '#faf5e8' : '#fff',
+                  color: active ? '#8b6914' : '#b5a58a',
                   transition:'all 0.2s', fontFamily:font, lineHeight:'1.6',
                 }}>
                   ● {label}
@@ -740,12 +749,13 @@ export default function Home() {
                 onClick={handleSmartFill}
                 disabled={smartFillLoading || aiMicProcessing || !aiDescription.trim()}
                 style={{
-                  background: (!aiDescription.trim() || smartFillLoading || aiMicProcessing) ? '#aaa' : '#c0392b',
-                  color:'#fff', border:'none', borderRadius:'10px',
+                  background: (!aiDescription.trim() || smartFillLoading || aiMicProcessing) ? '#b5a58a' : '#1e1008',
+                  color: (!aiDescription.trim() || smartFillLoading || aiMicProcessing) ? '#fff' : '#c9a84c',
+                  border:'none', borderRadius:'12px',
                   padding:'10px 20px', fontSize:'14px', fontWeight:'700',
                   cursor: (!aiDescription.trim() || smartFillLoading || aiMicProcessing) ? 'not-allowed' : 'pointer',
                   fontFamily:font, display:'flex', alignItems:'center', justifyContent:'center', gap:'8px',
-                  transition:'background 0.15s', letterSpacing:'0.01em',
+                  transition:'background 0.15s', letterSpacing:'0.05em',
                   width: isMobile ? '100%' : 'auto',
                 }}
               >
@@ -763,28 +773,28 @@ export default function Home() {
         {returnModal && (
           <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center', padding:'16px'}}
             onClick={() => setReturnModal(null)}>
-            <div style={{background:'#fff', borderRadius:'16px', width:'100%', maxWidth:'480px', padding:'28px', boxShadow:'0 8px 32px rgba(0,0,0,0.18)', fontFamily:font}}
+            <div style={{background:'#fff', borderRadius:'16px', width:'100%', maxWidth:'480px', padding:'28px', boxShadow:'0 8px 32px rgba(30,16,8,0.18)', fontFamily:font, border:'1px solid #e8dfc8'}}
               onClick={e => e.stopPropagation()}>
-              <div style={{fontSize:'16px', fontWeight:'700', color:'#0f1214', marginBottom:'20px'}}>Welcome back! Last order details:</div>
+              <div style={{fontSize:'16px', fontWeight:'700', color:'#1e1008', marginBottom:'20px', letterSpacing:'0.03em'}}>Welcome back! Last order details:</div>
 
               {returnModal.lastAddress && (
-                <div style={{marginBottom:'20px', padding:'14px', background:'#f9f8f5', borderRadius:'10px'}}>
-                  <div style={{fontSize:'11px', fontWeight:'700', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px'}}>Delivery Address</div>
-                  <div style={{fontSize:'13px', color:'#0f1214', marginBottom:'12px', lineHeight:'1.6'}}>{returnModal.lastAddress}</div>
+                <div style={{marginBottom:'20px', padding:'14px', background:'#faf5e8', borderRadius:'12px', border:'1px solid #e8dfc8'}}>
+                  <div style={{fontSize:'11px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'6px'}}>Delivery Address</div>
+                  <div style={{fontSize:'13px', color:'#1e1008', marginBottom:'12px', lineHeight:'1.6'}}>{returnModal.lastAddress}</div>
                   <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
-                    <button onClick={() => { ff('delivery_address', returnModal.lastAddress); setReturnModal(m => m.lastMenu ? { ...m, lastAddress: null } : null); }} style={{background:'#0f1214', color:'#fff', padding:'8px 16px', borderRadius:'8px', border:'none', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>Same address</button>
-                    <button onClick={() => { setReturnModal(m => m.lastMenu ? { ...m, lastAddress: null } : null); }} style={{background:'#fff', color:'#0f1214', padding:'8px 16px', borderRadius:'8px', border:'1px solid #e8e6e0', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>I'll update it</button>
+                    <button onClick={() => { ff('delivery_address', returnModal.lastAddress); setReturnModal(m => m.lastMenu ? { ...m, lastAddress: null } : null); }} style={{background:'#1e1008', color:'#c9a84c', padding:'8px 16px', borderRadius:'10px', border:'none', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:font, letterSpacing:'0.04em'}}>Same address</button>
+                    <button onClick={() => { setReturnModal(m => m.lastMenu ? { ...m, lastAddress: null } : null); }} style={{background:'#fff', color:'#1e1008', padding:'8px 16px', borderRadius:'10px', border:'1px solid #c9a84c', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>I'll update it</button>
                   </div>
                 </div>
               )}
 
               {returnModal.lastMenu && (
-                <div style={{marginBottom:'4px', padding:'14px', background:'#f9f8f5', borderRadius:'10px'}}>
-                  <div style={{fontSize:'11px', fontWeight:'700', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px'}}>Menu</div>
-                  <div style={{fontSize:'13px', color:'#0f1214', whiteSpace:'pre-line', marginBottom:'12px', lineHeight:'1.8', maxHeight:'160px', overflowY:'auto'}}>{returnModal.lastMenu}</div>
+                <div style={{marginBottom:'4px', padding:'14px', background:'#faf5e8', borderRadius:'12px', border:'1px solid #e8dfc8'}}>
+                  <div style={{fontSize:'11px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'6px'}}>Menu</div>
+                  <div style={{fontSize:'13px', color:'#1e1008', whiteSpace:'pre-line', marginBottom:'12px', lineHeight:'1.8', maxHeight:'160px', overflowY:'auto'}}>{returnModal.lastMenu}</div>
                   <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
-                    <button onClick={() => { ff('order_details', returnModal.lastMenu); setReturnModal(m => m.lastAddress ? { ...m, lastMenu: null } : null); }} style={{background:'#0f1214', color:'#fff', padding:'8px 16px', borderRadius:'8px', border:'none', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>Same menu</button>
-                    <button onClick={() => { setReturnModal(m => m.lastAddress ? { ...m, lastMenu: null } : null); }} style={{background:'#fff', color:'#0f1214', padding:'8px 16px', borderRadius:'8px', border:'1px solid #e8e6e0', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>I'll update it</button>
+                    <button onClick={() => { ff('order_details', returnModal.lastMenu); setReturnModal(m => m.lastAddress ? { ...m, lastMenu: null } : null); }} style={{background:'#1e1008', color:'#c9a84c', padding:'8px 16px', borderRadius:'10px', border:'none', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:font, letterSpacing:'0.04em'}}>Same menu</button>
+                    <button onClick={() => { setReturnModal(m => m.lastAddress ? { ...m, lastMenu: null } : null); }} style={{background:'#fff', color:'#1e1008', padding:'8px 16px', borderRadius:'10px', border:'1px solid #c9a84c', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>I'll update it</button>
                   </div>
                 </div>
               )}
@@ -793,17 +803,17 @@ export default function Home() {
           </div>
         )}
 
-        <span style={sectionLabel}>Client Details</span>
+        {sectionDivider('Client Details')}
 
         <div style={{marginBottom:'18px', position:'relative'}}>
           <label style={labelStyle}>Client name <span style={required}>*</span></label>
           <input style={inputStyle} placeholder="Sarah Johnson" value={form.client_name} onChange={e => handleNameChange(e.target.value)}/>
           {suggestions.length > 0 && (
-            <div style={{position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1px solid #e8e6e0', borderRadius:'10px', zIndex:10, marginTop:'4px', overflow:'hidden', boxShadow:'0 4px 12px rgba(0,0,0,0.08)'}}>
+            <div style={{position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1px solid #c9a84c', borderRadius:'12px', zIndex:10, marginTop:'4px', overflow:'hidden', boxShadow:'0 4px 12px rgba(30,16,8,0.1)'}}>
               {suggestions.map((c, i) => (
                 <div key={i} onClick={() => selectSuggestion(c)}
-                  style={{padding:'12px 16px', fontSize:'14px', cursor:'pointer', borderBottom: i < suggestions.length-1 ? '1px solid #f5f4f0':'none', fontFamily:font, color:'#0f1214', background:'#fff'}}
-                  onMouseEnter={e => e.currentTarget.style.background='#f9f8f5'}
+                  style={{padding:'12px 16px', fontSize:'14px', cursor:'pointer', borderBottom: i < suggestions.length-1 ? '1px solid #f5f0e8':'none', fontFamily:font, color:'#1e1008', background:'#fff'}}
+                  onMouseEnter={e => e.currentTarget.style.background='#faf5e8'}
                   onMouseLeave={e => e.currentTarget.style.background='#fff'}>
                   {c.client_name}
                 </div>
@@ -818,7 +828,7 @@ export default function Home() {
             <input style={inputStyle} type="tel" placeholder="201-555-0000" value={form.client_phone} onChange={e => ff('client_phone', formatPhone(e.target.value))}/>
           </div>
           <div>
-            <label style={labelStyle}>Email <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
+            <label style={labelStyle}>Email <span style={{fontSize:'10px', color:'#b5a58a', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
             <input style={inputStyle} type="email" placeholder="sarah@company.com" value={form.client_email} onChange={e => ff('client_email', e.target.value)}/>
           </div>
         </div>
@@ -856,7 +866,7 @@ export default function Home() {
           </div>
         )}
 
-        <span style={sectionLabel}>Delivery Details</span>
+        {sectionDivider('Delivery Details')}
 
         <div style={{marginBottom:'18px'}}>
           <label style={labelStyle}>Delivery address <span style={required}>*</span></label>
@@ -864,7 +874,7 @@ export default function Home() {
         </div>
 
         <div style={{marginBottom:'18px'}}>
-          <label style={labelStyle}>Special instructions for driver <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
+          <label style={labelStyle}>Special instructions for driver <span style={{fontSize:'10px', color:'#b5a58a', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
           <textarea style={{...inputStyle, height:'80px', resize:'none'}} placeholder="Gate code, elevator only, call before arriving..." value={form.notes} onChange={e => ff('notes', e.target.value)}/>
         </div>
 
@@ -886,8 +896,8 @@ export default function Home() {
         <div style={{marginBottom:'18px'}}>
           <label style={labelStyle}>Number of guests</label>
           <input style={inputStyle} type="text" placeholder="40 + 6 vegetarian + 3 gluten free" value={form.guest_count} onChange={e => handleGuestCount(e.target.value)}/>
-          {guestTotal > 0 && <p style={{fontSize:'13px', fontWeight:'700', color:'#0f1214', margin:'6px 0 0', fontFamily:font}}>= {guestTotal} total guests</p>}
-          <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0', fontFamily:font}}>Use + to separate groups</p>
+          {guestTotal > 0 && <p style={{fontSize:'13px', fontWeight:'700', color:'#1e1008', margin:'6px 0 0', fontFamily:font}}>= {guestTotal} total guests</p>}
+          <p style={{fontSize:'11px', color:'#b5a58a', margin:'4px 0 0', fontFamily:font}}>Use + to separate groups</p>
         </div>
 
         <div style={{marginBottom:'18px'}}>
@@ -905,51 +915,51 @@ export default function Home() {
           </select>
         </div>
 
-        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:'12px', fontWeight:'700', color:'#0f1214', textTransform:'uppercase', letterSpacing:'0.08em', margin:'0 0 16px', paddingBottom:'8px', borderBottom:'2px solid #0f1214', fontFamily:font}}>
-          <span>Menu <span style={required}>*</span></span>
-          {form.menu_package === 'Custom' && (
+        {sectionDivider(
+          <span>Menu <span style={required}>*</span></span>,
+          form.menu_package === 'Custom' ? (
             <button onClick={() => startListening('menu')} style={micBtn('menu')} title={listening === 'menu' ? 'Stop listening' : 'Voice input'}>
               <MicIcon />
             </button>
-          )}
-        </div>
+          ) : null
+        )}
 
         {form.menu_package === 'Custom' ? (
           <div style={{marginBottom:'18px'}}>
             <textarea style={{...inputStyle, height:'200px', resize:'none', lineHeight:'1.8'}} value={form.order_details} onChange={handleMenu} onKeyDown={handleMenuKey}/>
             {listening === 'menu'
-              ? <p style={{fontSize:'11px', color:'#e53e3e', margin:'4px 0 0', fontFamily:font}}>Listening... say "next" to start a new item</p>
-              : <p style={{fontSize:'11px', color:'#aaa', margin:'4px 0 0', fontFamily:font}}>Press Enter or tap mic to add items</p>
+              ? <p style={{fontSize:'11px', color:'#c0392b', margin:'4px 0 0', fontFamily:font}}>Listening... say "next" to start a new item</p>
+              : <p style={{fontSize:'11px', color:'#b5a58a', margin:'4px 0 0', fontFamily:font}}>Press Enter or tap mic to add items</p>
             }
           </div>
         ) : (
-          <div style={{marginBottom:'18px', border:'1px solid #e8e6e0', borderRadius:'12px', overflow:'hidden'}}>
+          <div style={{marginBottom:'18px', border:'1px solid #e8dfc8', borderRadius:'12px', overflow:'hidden'}}>
             {/* Column headers */}
-            <div style={{display:'grid', gridTemplateColumns:'1fr 148px 68px', gap:'8px', padding:'8px 14px 8px 16px', background:'#f9f8f5', borderBottom:'1px solid #e8e6e0'}}>
-              <div style={{fontSize:'10px', fontWeight:'700', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', fontFamily:font}}>Item</div>
-              <div style={{fontSize:'10px', fontWeight:'700', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', fontFamily:font}}>Size</div>
-              <div style={{fontSize:'10px', fontWeight:'700', color:'#888', textTransform:'uppercase', letterSpacing:'0.06em', fontFamily:font, textAlign:'center'}}>Qty</div>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 148px 68px', gap:'8px', padding:'8px 14px 8px 16px', background:'#faf5e8', borderBottom:'1px solid #e8dfc8'}}>
+              <div style={{fontSize:'10px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font}}>Item</div>
+              <div style={{fontSize:'10px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font}}>Size</div>
+              <div style={{fontSize:'10px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font, textAlign:'center'}}>Qty</div>
             </div>
             {menuItems.map((item, i) => (
-              <div key={i} style={{display:'grid', gridTemplateColumns:'1fr 148px 68px', gap:'8px', padding:'10px 14px 10px 16px', alignItems:'center', borderBottom: i < menuItems.length - 1 ? '1px solid #f0efeb' : 'none', background:'#fff'}}>
-                <div style={{fontSize:'14px', fontWeight:'500', color:'#0f1214', fontFamily:font, lineHeight:'1.35', minWidth:0}}>{item.name}</div>
+              <div key={i} style={{display:'grid', gridTemplateColumns:'1fr 148px 68px', gap:'8px', padding:'10px 14px 10px 16px', alignItems:'center', borderBottom: i < menuItems.length - 1 ? '1px solid #f5f0e8' : 'none', background:'#fff'}}>
+                <div style={{fontSize:'14px', fontWeight:'500', color:'#1e1008', fontFamily:font, lineHeight:'1.35', minWidth:0}}>{item.name}</div>
                 <div>
                   {CAT_SIZES[item.cat] ? (
                     <select
                       value={item.size}
                       onChange={e => updateMenuItem(i, 'size', e.target.value)}
-                      style={{width:'100%', minHeight:'44px', padding:'8px 10px', border:'1px solid #e8e6e0', borderRadius:'8px', fontSize:'13px', color:'#0f1214', fontFamily:font, background:'#fff', outline:'none'}}
+                      style={{width:'100%', minHeight:'44px', padding:'8px 10px', border:'1px solid #c9a84c', borderRadius:'8px', fontSize:'13px', color:'#1e1008', fontFamily:font, background:'#fff', outline:'none'}}
                     >
                       {CAT_SIZES[item.cat].map(s => <option key={s}>{s}</option>)}
                     </select>
                   ) : (
-                    <div style={{fontSize:'12px', color:'#ccc', fontFamily:font, textAlign:'center', padding:'4px 0'}}>—</div>
+                    <div style={{fontSize:'12px', color:'#b5a58a', fontFamily:font, textAlign:'center', padding:'4px 0'}}>—</div>
                   )}
                 </div>
                 <select
                   value={item.qty}
                   onChange={e => updateMenuItem(i, 'qty', e.target.value)}
-                  style={{width:'100%', minHeight:'44px', padding:'8px 4px', border:'1px solid #e8e6e0', borderRadius:'8px', fontSize:'15px', fontWeight:'600', color:'#0f1214', fontFamily:font, background:'#fff', outline:'none', textAlign:'center'}}
+                  style={{width:'100%', minHeight:'44px', padding:'8px 4px', border:'1px solid #c9a84c', borderRadius:'8px', fontSize:'15px', fontWeight:'600', color:'#1e1008', fontFamily:font, background:'#fff', outline:'none', textAlign:'center'}}
                 >
                   {[1,2,3,4].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
@@ -959,13 +969,13 @@ export default function Home() {
         )}
 
         <div style={{marginBottom:'18px'}}>
-          <label style={labelStyle}>Additional notes for kitchen <span style={{fontSize:'10px', color:'#bbb', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
+          <label style={labelStyle}>Additional notes for kitchen <span style={{fontSize:'10px', color:'#b5a58a', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
           <textarea style={{...inputStyle, height:'80px', resize:'none'}} placeholder="Allergy notes, substitutions, prep instructions..." value={form.kitchen_notes} onChange={e => ff('kitchen_notes', e.target.value)}/>
         </div>
 
-        <div style={{fontSize:'11px', color:'#bbb', marginBottom:'16px', fontFamily:font}}><span style={required}>*</span> Required fields</div>
+        <div style={{fontSize:'11px', color:'#b5a58a', marginBottom:'16px', fontFamily:font}}><span style={required}>*</span> Required fields</div>
 
-        <button onClick={save} disabled={saving} style={{width:'100%', background: saving ? '#888':'#0f1214', color:'#fff', borderRadius:'10px', padding:'16px', fontSize:'16px', fontWeight:'700', border:'none', cursor: saving ? 'not-allowed':'pointer', fontFamily:font, letterSpacing:'0.01em'}}>
+        <button onClick={save} disabled={saving} style={{width:'100%', background: saving ? '#b5a58a':'#1e1008', color: saving ? '#fff' : '#c9a84c', borderRadius:'12px', padding:'16px', fontSize:'16px', fontWeight:'700', border:'none', cursor: saving ? 'not-allowed':'pointer', fontFamily:font, letterSpacing:'0.05em'}}>
           {saving ? 'Sending...' : 'Send order to kitchen'}
         </button>
 

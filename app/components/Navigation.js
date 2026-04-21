@@ -8,7 +8,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-const FONT = 'Calibri, Georgia, serif';
+const FONT = 'Georgia, serif';
 
 const TABS = [
   { label: 'New Order',      href: '/' },
@@ -28,16 +28,22 @@ export default function Navigation() {
 
   return (
     <nav className="nav-root" style={{
-      background: '#0f1214',
+      background: '#f5f0e8',
       display: 'flex',
       alignItems: 'center',
-      padding: '0 20px',
-      borderBottom: '1px solid #1e2226',
+      padding: '0 24px',
+      borderBottom: '1px solid #c9a84c',
       flexShrink: 0,
     }}>
       <div className="nav-brand" style={{
-        fontFamily: FONT, fontWeight: 700, color: '#fff',
-        fontSize: 15, marginRight: 20, flexShrink: 0, letterSpacing: 0.3,
+        fontFamily: FONT,
+        fontWeight: 700,
+        color: '#1e1008',
+        fontSize: 13,
+        marginRight: 28,
+        flexShrink: 0,
+        letterSpacing: '4px',
+        textTransform: 'uppercase',
       }}>
         DR Catering
       </div>
@@ -50,16 +56,17 @@ export default function Navigation() {
               key={tab.href}
               href={tab.href}
               style={{
-                color: active ? '#fff' : '#777',
+                color: active ? '#1e1008' : '#8b6914',
                 textDecoration: 'none',
                 fontFamily: FONT,
                 fontSize: 13,
-                fontWeight: active ? 600 : 400,
-                padding: '13px 14px',
-                borderBottom: active ? '2px solid #c0392b' : '2px solid transparent',
+                fontWeight: active ? 700 : 400,
+                padding: '14px 16px',
+                borderBottom: active ? '2px solid #c9a84c' : '2px solid transparent',
                 display: 'inline-block',
                 whiteSpace: 'nowrap',
                 transition: 'color 0.15s',
+                letterSpacing: '0.03em',
               }}
             >
               {tab.label}
@@ -73,15 +80,17 @@ export default function Navigation() {
         onClick={handleSignOut}
         style={{
           background: 'transparent',
-          border: '1px solid #2e3336',
-          borderRadius: 7,
-          padding: '5px 12px',
+          border: '1px solid #c9a84c',
+          borderRadius: 8,
+          padding: '6px 14px',
           fontSize: 12,
           fontWeight: 600,
-          color: '#666',
+          color: '#8b6914',
           cursor: 'pointer',
           fontFamily: FONT,
           flexShrink: 0,
+          letterSpacing: '0.04em',
+          transition: 'background 0.15s',
         }}
       >
         Sign out
