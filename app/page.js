@@ -637,7 +637,7 @@ export default function Home() {
         <h2 style={{fontSize:'22px', fontWeight:'700', color:'#0f1214', margin:'0 0 8px', fontFamily:font}}>Order sent to kitchen</h2>
         <div style={{display:'inline-block', background:'#f0f0f0', borderRadius:'8px', padding:'6px 16px', fontSize:'13px', fontWeight:'700', color:'#0f1214', marginBottom:'12px', fontFamily:font}}>{savedOrder?.order_number}</div>
         <p style={{fontSize:'14px', color:'#888', margin:'0 0 28px', fontFamily:font}}>Order for {savedOrder?.client_name} has been saved and emailed.</p>
-        <button onClick={reset} style={{background:'#0f1214', color:'#fff', borderRadius:'10px', padding:'13px 28px', fontSize:'14px', fontWeight:'600', border:'none', cursor:'pointer', fontFamily:font}}>New order</button>
+        <button onClick={reset} style={{background:'#0f1214', color:'#fff', borderRadius:'10px', padding:'13px 28px', fontSize:'14px', fontWeight:'600', border:'none', cursor:'pointer', fontFamily:font, width: isMobile ? '100%' : 'auto'}}>New order</button>
       </div>
     </main>
     </>
@@ -732,9 +732,9 @@ export default function Home() {
             </div>
 
             {/* Smart Fill button row */}
-            <div style={{display:'flex', justifyContent:'flex-end', alignItems:'center', gap:'10px', marginTop:'12px'}}>
+            <div style={{display:'flex', justifyContent: isMobile ? 'stretch' : 'flex-end', alignItems:'center', gap:'10px', marginTop:'12px', flexWrap:'wrap'}}>
               {smartFillError && (
-                <span style={{fontSize:'12px', color:'#e53e3e', fontFamily:font}}>{smartFillError}</span>
+                <span style={{fontSize:'12px', color:'#e53e3e', fontFamily:font, width: isMobile ? '100%' : 'auto'}}>{smartFillError}</span>
               )}
               <button
                 onClick={handleSmartFill}
@@ -744,8 +744,9 @@ export default function Home() {
                   color:'#fff', border:'none', borderRadius:'10px',
                   padding:'10px 20px', fontSize:'14px', fontWeight:'700',
                   cursor: (!aiDescription.trim() || smartFillLoading || aiMicProcessing) ? 'not-allowed' : 'pointer',
-                  fontFamily:font, display:'flex', alignItems:'center', gap:'8px',
+                  fontFamily:font, display:'flex', alignItems:'center', justifyContent:'center', gap:'8px',
                   transition:'background 0.15s', letterSpacing:'0.01em',
+                  width: isMobile ? '100%' : 'auto',
                 }}
               >
                 {smartFillLoading ? (

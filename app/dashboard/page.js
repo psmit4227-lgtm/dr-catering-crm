@@ -84,14 +84,14 @@ export default function DashboardPage() {
   return (
     <>
       <Navigation />
-      <main style={{ minHeight:'calc(100vh - 44px)', background:'#f9f8f5', padding:'32px 24px', fontFamily:FONT, boxSizing:'border-box' }}>
+      <main className="page-main" style={{ minHeight:'calc(100vh - 44px)', background:'#f9f8f5', padding:'32px 24px', fontFamily:FONT, boxSizing:'border-box' }}>
         <div style={{ maxWidth:880, margin:'0 auto' }}>
 
           {/* Page title */}
           <div style={{ fontSize:22, fontWeight:700, color:'#0f1214', fontFamily:FONT, marginBottom:24 }}>Dashboard</div>
 
           {/* Stats row */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:14, marginBottom:32 }}>
+          <div className="stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:14, marginBottom:32 }}>
             <StatCard
               label={`Orders — ${monthName}`}
               value={totalOrders}

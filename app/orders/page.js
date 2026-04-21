@@ -81,11 +81,11 @@ export default function OrdersPage() {
   return (
     <>
       <Navigation />
-      <main style={{ minHeight:'calc(100vh - 44px)', background:'#f9f8f5', padding:'32px 24px', fontFamily:FONT, boxSizing:'border-box' }}>
+      <main className="page-main" style={{ minHeight:'calc(100vh - 44px)', background:'#f9f8f5', padding:'32px 24px', fontFamily:FONT, boxSizing:'border-box' }}>
         <div style={{ maxWidth:880, margin:'0 auto' }}>
 
           {/* Header row */}
-          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:12, marginBottom:24 }}>
+          <div className="orders-header" style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:12, marginBottom:24 }}>
             <div>
               <div style={{ fontSize:22, fontWeight:700, color:'#0f1214', fontFamily:FONT }}>Orders History</div>
               <div style={{ fontSize:13, color:'#888', marginTop:4, fontFamily:FONT }}>
@@ -93,6 +93,7 @@ export default function OrdersPage() {
               </div>
             </div>
             <input
+              className="orders-search"
               type="search"
               placeholder="Search by client, date, or order #..."
               value={search}

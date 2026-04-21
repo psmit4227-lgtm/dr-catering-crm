@@ -27,7 +27,7 @@ export default function Navigation() {
   };
 
   return (
-    <nav style={{
+    <nav className="nav-root" style={{
       background: '#0f1214',
       display: 'flex',
       alignItems: 'center',
@@ -35,14 +35,14 @@ export default function Navigation() {
       borderBottom: '1px solid #1e2226',
       flexShrink: 0,
     }}>
-      <div style={{
+      <div className="nav-brand" style={{
         fontFamily: FONT, fontWeight: 700, color: '#fff',
         fontSize: 15, marginRight: 20, flexShrink: 0, letterSpacing: 0.3,
       }}>
         DR Catering
       </div>
 
-      <div style={{ display: 'flex', flex: 1 }}>
+      <div className="nav-tabs" style={{ display: 'flex', flex: 1 }}>
         {TABS.map(tab => {
           const active = pathname === tab.href;
           return (
@@ -69,6 +69,7 @@ export default function Navigation() {
       </div>
 
       <button
+        className="nav-signout"
         onClick={handleSignOut}
         style={{
           background: 'transparent',

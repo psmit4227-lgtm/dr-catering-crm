@@ -11,4 +11,77 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+}
+
+/* ── Touch targets ─────────────────────────────────────── */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="date"],
+input[type="time"],
+input[type="search"],
+input[type="password"],
+select {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+/* ── Navigation ────────────────────────────────────────── */
+.nav-root {
+  flex-wrap: wrap !important;
+}
+
+.nav-tabs {
+  flex-wrap: wrap !important;
+}
+
+@media (max-width: 599px) {
+  .nav-root {
+    padding: 0 12px !important;
+  }
+  .nav-brand {
+    display: none !important;
+  }
+  .nav-tabs a {
+    font-size: 12px !important;
+    padding: 10px 8px !important;
+  }
+  .nav-signout {
+    padding: 5px 10px !important;
+    font-size: 11px !important;
+    margin: auto 0 !important;
+  }
+}
+
+/* ── Dashboard stat grid ───────────────────────────────── */
+@media (max-width: 479px) {
+  .stat-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 767px) {
+  .stat-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* ── Orders page ───────────────────────────────────────── */
+@media (max-width: 599px) {
+  .orders-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  .orders-search {
+    width: 100% !important;
+  }
+}
+
+/* ── Page main padding on mobile ───────────────────────── */
+@media (max-width: 479px) {
+  .page-main {
+    padding: 16px 12px !important;
+  }
 }
