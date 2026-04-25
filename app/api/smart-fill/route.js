@@ -55,6 +55,7 @@ Fields:
   - "40 guests plus 6 kids" → 46
 - kitchenNotes (string): any allergy info, dietary restrictions, substitutions, or prep instructions. ALWAYS include guest dietary sub-groups here (e.g. "3 vegetarian, 3 gluten free" from a guest count like "50 including 3 vegetarian, 3 gluten free"), so the kitchen has a clear note even though guestCount is now just a number. Leave empty string if none.
 - driverNotes (string): any delivery logistics mentioned — e.g. gate codes, parking instructions, floor/elevator info, "call before arriving". Leave empty string if none.
+- suggestedPackage (string): if the order clearly matches one of these DR Catering packages, return the exact label — "Mediterranean Sun", "Fiesta Del Sol", "Signature Cold Buffet", "Barbecue Spread", "Executive Package", "Italian Package", "Hot & Cold Breakfast", "Cold Continental". Otherwise return empty string.
 - menuItems (array of strings): each item is a single string. If the speaker mentions a quantity, customization, modifier, or note immediately after an item, append it inline with a dash — do NOT put it in a separate field.
   Examples:
   - "10 cheeseburgers, add jalapeños" → "10 cheeseburgers - add jalapeños"

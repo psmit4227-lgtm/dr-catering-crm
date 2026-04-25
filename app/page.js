@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { generateOrderPDF, downloadOrderPDF } from './pdf';
 import Navigation from './components/Navigation';
+import MenuWizard, { WIZARD_PACKAGES } from './components/MenuWizard';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -132,6 +133,8 @@ export default function Home() {
   const [width, setWidth] = useState(0);
   const [guestTotal, setGuestTotal] = useState(0);
   const [guestHint, setGuestHint] = useState('');
+  const [menuMode, setMenuMode] = useState('quick');       // 'quick' | 'wizard'
+  const [wizardSuggestedId, setWizardSuggestedId] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [listening, setListening] = useState(null);
   const recognitionRef = useRef(null);
@@ -382,6 +385,14 @@ export default function Home() {
       }
       if (p.kitchenNotes) ff('kitchen_notes', p.kitchenNotes);
       if (p.driverNotes) ff('notes', p.driverNotes);
+      // Wizard mode: if Smart Fill detected a package, pre-select it in the wizard
+      if (p.suggestedPackage) {
+        const match = WIZARD_PACKAGES.find(wp =>
+          wp.label.toLowerCase().includes(p.suggestedPackage.toLowerCase()) ||
+          p.suggestedPackage.toLowerCase().includes(wp.label.toLowerCase())
+        );
+        if (match) setWizardSuggestedId(match.id);
+      }
     } catch (err) {
       setSmartFillError(err.message || 'Could not parse response. Please try again.');
     }
@@ -647,6 +658,7 @@ export default function Home() {
   const reset = () => {
     setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', on_site_phone: '', event_type: '', event_type_other: '', delivery_address: '', delivery_date: '', time_out: '', delivery_time: '', guest_count: '', menu_package: 'Custom', order_details: '• ', kitchen_notes: '', notes: '' });
     setDone(false); setSavedOrder(null); setSuggestions([]); setReturnModal(null); setGuestTotal(0); setGuestHint('');
+    setMenuMode('quick'); setWizardSuggestedId(null);
     setAiPlacesQuery(''); setAiDescription(''); setAiMicProcessing(false); setSmartFillError('');
     clearTimeout(aiAutoFillTimerRef.current);
   };
@@ -961,72 +973,106 @@ export default function Home() {
           <p style={{fontSize:'11px', color:'#b5a58a', margin:'4px 0 0', fontFamily:font}}>Use "plus" or + to add groups; "including" for dietary subsets</p>
         </div>
 
-        <div style={{marginBottom:'18px'}}>
-          <label style={labelStyle}>Menu package</label>
-          <select style={inputStyle} value={form.menu_package} onChange={e => handlePackageChange(e.target.value)}>
-            <option value="Custom">Custom</option>
-            <option>Mediterranean Sun Package</option>
-            <option>Fiesta Del Sol (Mexican)</option>
-            <option>Signature Cold Buffet</option>
-            <option>Barbecue Spread</option>
-            <option>Executive Package</option>
-            <option>Italian Package</option>
-            <option>Hot and Cold Breakfast Buffet</option>
-            <option>Cold Continental Breakfast</option>
-          </select>
-        </div>
-
         {sectionDivider(
           <span>Menu <span style={required}>*</span></span>,
-          form.menu_package === 'Custom' ? (
-            <button onClick={() => startListening('menu')} style={micBtn('menu')} title={listening === 'menu' ? 'Stop listening' : 'Voice input'}>
-              <MicIcon />
-            </button>
-          ) : null
+          <div style={{display:'flex', gap:'6px', alignItems:'center'}}>
+            {(['quick','wizard']).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setMenuMode(mode)}
+                style={{
+                  padding:'4px 11px', fontSize:'11px', fontWeight:'700', fontFamily:font,
+                  border:`1px solid ${menuMode === mode ? '#c9a84c' : '#e8dfc8'}`,
+                  background: menuMode === mode ? '#1e1008' : '#fff',
+                  color: menuMode === mode ? '#c9a84c' : '#8b6914',
+                  borderRadius:'8px', cursor:'pointer', letterSpacing:'0.04em', whiteSpace:'nowrap',
+                }}
+              >
+                {mode === 'quick' ? 'Quick Type' : 'Menu Wizard'}
+              </button>
+            ))}
+            {menuMode === 'quick' && form.menu_package === 'Custom' && (
+              <button onClick={() => startListening('menu')} style={micBtn('menu')} title={listening === 'menu' ? 'Stop listening' : 'Voice input'}>
+                <MicIcon />
+              </button>
+            )}
+          </div>
         )}
 
-        {form.menu_package === 'Custom' ? (
-          <div style={{marginBottom:'18px'}}>
-            <textarea style={{...inputStyle, height:'200px', resize:'none', lineHeight:'1.8'}} value={form.order_details} onChange={handleMenu} onKeyDown={handleMenuKey}/>
-            {listening === 'menu'
-              ? <p style={{fontSize:'11px', color:'#c0392b', margin:'4px 0 0', fontFamily:font}}>Listening... say "next" to start a new item</p>
-              : <p style={{fontSize:'11px', color:'#b5a58a', margin:'4px 0 0', fontFamily:font}}>Press Enter or tap mic to add items</p>
-            }
-          </div>
+        {menuMode === 'wizard' ? (
+          <MenuWizard
+            key={wizardSuggestedId || 'wizard'}
+            isMobile={isMobile}
+            suggestedPkgId={wizardSuggestedId}
+            onComplete={(text) => {
+              ff('order_details', text);
+              ff('menu_package', 'Custom');
+              setMenuItems([]);
+              setWizardSuggestedId(null);
+              setMenuMode('quick');
+            }}
+            onCancel={() => setMenuMode('quick')}
+          />
         ) : (
-          <div style={{marginBottom:'18px', border:'1px solid #e8dfc8', borderRadius:'12px', overflow:'hidden'}}>
-            {/* Column headers */}
-            <div style={{display:'grid', gridTemplateColumns:'1fr 148px 68px', gap:'8px', padding:'8px 14px 8px 16px', background:'#faf5e8', borderBottom:'1px solid #e8dfc8'}}>
-              <div style={{fontSize:'10px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font}}>Item</div>
-              <div style={{fontSize:'10px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font}}>Size</div>
-              <div style={{fontSize:'10px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font, textAlign:'center'}}>Qty</div>
+          <>
+            <div style={{marginBottom:'18px'}}>
+              <label style={labelStyle}>Menu package</label>
+              <select style={inputStyle} value={form.menu_package} onChange={e => handlePackageChange(e.target.value)}>
+                <option value="Custom">Custom</option>
+                <option>Mediterranean Sun Package</option>
+                <option>Fiesta Del Sol (Mexican)</option>
+                <option>Signature Cold Buffet</option>
+                <option>Barbecue Spread</option>
+                <option>Executive Package</option>
+                <option>Italian Package</option>
+                <option>Hot and Cold Breakfast Buffet</option>
+                <option>Cold Continental Breakfast</option>
+              </select>
             </div>
-            {menuItems.map((item, i) => (
-              <div key={i} style={{display:'grid', gridTemplateColumns:'1fr 148px 68px', gap:'8px', padding:'10px 14px 10px 16px', alignItems:'center', borderBottom: i < menuItems.length - 1 ? '1px solid #f5f0e8' : 'none', background:'#fff'}}>
-                <div style={{fontSize:'14px', fontWeight:'500', color:'#1e1008', fontFamily:font, lineHeight:'1.35', minWidth:0}}>{item.name}</div>
-                <div>
-                  {CAT_SIZES[item.cat] ? (
-                    <select
-                      value={item.size}
-                      onChange={e => updateMenuItem(i, 'size', e.target.value)}
-                      style={{width:'100%', minHeight:'44px', padding:'8px 10px', border:'1px solid #c9a84c', borderRadius:'8px', fontSize:'13px', color:'#1e1008', fontFamily:font, background:'#fff', outline:'none'}}
-                    >
-                      {CAT_SIZES[item.cat].map(s => <option key={s}>{s}</option>)}
-                    </select>
-                  ) : (
-                    <div style={{fontSize:'12px', color:'#b5a58a', fontFamily:font, textAlign:'center', padding:'4px 0'}}>—</div>
-                  )}
-                </div>
-                <select
-                  value={item.qty}
-                  onChange={e => updateMenuItem(i, 'qty', e.target.value)}
-                  style={{width:'100%', minHeight:'44px', padding:'8px 4px', border:'1px solid #c9a84c', borderRadius:'8px', fontSize:'15px', fontWeight:'600', color:'#1e1008', fontFamily:font, background:'#fff', outline:'none', textAlign:'center'}}
-                >
-                  {[1,2,3,4].map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
+
+            {form.menu_package === 'Custom' ? (
+              <div style={{marginBottom:'18px'}}>
+                <textarea style={{...inputStyle, height:'200px', resize:'none', lineHeight:'1.8'}} value={form.order_details} onChange={handleMenu} onKeyDown={handleMenuKey}/>
+                {listening === 'menu'
+                  ? <p style={{fontSize:'11px', color:'#c0392b', margin:'4px 0 0', fontFamily:font}}>Listening... say "next" to start a new item</p>
+                  : <p style={{fontSize:'11px', color:'#b5a58a', margin:'4px 0 0', fontFamily:font}}>Press Enter or tap mic to add items</p>
+                }
               </div>
-            ))}
-          </div>
+            ) : (
+              <div style={{marginBottom:'18px', border:'1px solid #e8dfc8', borderRadius:'12px', overflow:'hidden'}}>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 148px 68px', gap:'8px', padding:'8px 14px 8px 16px', background:'#faf5e8', borderBottom:'1px solid #e8dfc8'}}>
+                  <div style={{fontSize:'10px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font}}>Item</div>
+                  <div style={{fontSize:'10px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font}}>Size</div>
+                  <div style={{fontSize:'10px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font, textAlign:'center'}}>Qty</div>
+                </div>
+                {menuItems.map((item, i) => (
+                  <div key={i} style={{display:'grid', gridTemplateColumns:'1fr 148px 68px', gap:'8px', padding:'10px 14px 10px 16px', alignItems:'center', borderBottom: i < menuItems.length - 1 ? '1px solid #f5f0e8' : 'none', background:'#fff'}}>
+                    <div style={{fontSize:'14px', fontWeight:'500', color:'#1e1008', fontFamily:font, lineHeight:'1.35', minWidth:0}}>{item.name}</div>
+                    <div>
+                      {CAT_SIZES[item.cat] ? (
+                        <select
+                          value={item.size}
+                          onChange={e => updateMenuItem(i, 'size', e.target.value)}
+                          style={{width:'100%', minHeight:'44px', padding:'8px 10px', border:'1px solid #c9a84c', borderRadius:'8px', fontSize:'13px', color:'#1e1008', fontFamily:font, background:'#fff', outline:'none'}}
+                        >
+                          {CAT_SIZES[item.cat].map(s => <option key={s}>{s}</option>)}
+                        </select>
+                      ) : (
+                        <div style={{fontSize:'12px', color:'#b5a58a', fontFamily:font, textAlign:'center', padding:'4px 0'}}>—</div>
+                      )}
+                    </div>
+                    <select
+                      value={item.qty}
+                      onChange={e => updateMenuItem(i, 'qty', e.target.value)}
+                      style={{width:'100%', minHeight:'44px', padding:'8px 4px', border:'1px solid #c9a84c', borderRadius:'8px', fontSize:'15px', fontWeight:'600', color:'#1e1008', fontFamily:font, background:'#fff', outline:'none', textAlign:'center'}}
+                    >
+                      {[1,2,3,4].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         <div style={{marginBottom:'18px'}}>
