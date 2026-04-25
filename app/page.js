@@ -134,6 +134,7 @@ export default function Home() {
   const [guestTotal, setGuestTotal] = useState(0);
   const [guestHint, setGuestHint] = useState('');
   const [menuMode, setMenuMode] = useState('quick');       // 'quick' | 'wizard'
+  const [menuViewMode, setMenuViewMode] = useState('text'); // 'text' | 'grid'
   const [wizardSuggestedId, setWizardSuggestedId] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [listening, setListening] = useState(null);
@@ -379,19 +380,23 @@ export default function Home() {
       if (p.pickupTime) ff('time_out', to24h(p.pickupTime));
       if (p.guestCount && p.guestCount !== '0' && p.guestCount !== 0) applyGuestCount(String(p.guestCount));
       if (p.menuItems?.length) {
-        ff('menu_package', 'Custom');
         setMenuItems([]);
         ff('order_details', p.menuItems.map(i => `• ${i}`).join('\n'));
+        setMenuViewMode('text');
+        ff('menu_package', 'Custom'); // overridden below if package matched
       }
       if (p.kitchenNotes) ff('kitchen_notes', p.kitchenNotes);
       if (p.driverNotes) ff('notes', p.driverNotes);
-      // Wizard mode: if Smart Fill detected a package, pre-select it in the wizard
+      // If Smart Fill detected a known package, update the dropdown and pre-select in wizard
       if (p.suggestedPackage) {
         const match = WIZARD_PACKAGES.find(wp =>
           wp.label.toLowerCase().includes(p.suggestedPackage.toLowerCase()) ||
           p.suggestedPackage.toLowerCase().includes(wp.label.toLowerCase())
         );
-        if (match) setWizardSuggestedId(match.id);
+        if (match) {
+          setWizardSuggestedId(match.id);
+          ff('menu_package', match.dropdownValue);
+        }
       }
     } catch (err) {
       setSmartFillError(err.message || 'Could not parse response. Please try again.');
@@ -521,6 +526,7 @@ export default function Home() {
     if (pkg === 'Custom') {
       ff('order_details', '• ');
       setMenuItems([]);
+      setMenuViewMode('text');
     } else {
       const items = PACKAGE_ITEMS[pkg].map(({ name, cat }) => ({
         name, cat,
@@ -529,6 +535,7 @@ export default function Home() {
       }));
       setMenuItems(items);
       ff('order_details', serializeMenuItems(items));
+      setMenuViewMode('grid');
     }
   };
 
@@ -658,7 +665,7 @@ export default function Home() {
   const reset = () => {
     setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', on_site_phone: '', event_type: '', event_type_other: '', delivery_address: '', delivery_date: '', time_out: '', delivery_time: '', guest_count: '', menu_package: 'Custom', order_details: '• ', kitchen_notes: '', notes: '' });
     setDone(false); setSavedOrder(null); setSuggestions([]); setReturnModal(null); setGuestTotal(0); setGuestHint('');
-    setMenuMode('quick'); setWizardSuggestedId(null);
+    setMenuMode('quick'); setMenuViewMode('text'); setWizardSuggestedId(null);
     setAiPlacesQuery(''); setAiDescription(''); setAiMicProcessing(false); setSmartFillError('');
     clearTimeout(aiAutoFillTimerRef.current);
   };
@@ -991,7 +998,7 @@ export default function Home() {
                 {mode === 'quick' ? 'Quick Type' : 'Menu Wizard'}
               </button>
             ))}
-            {menuMode === 'quick' && form.menu_package === 'Custom' && (
+            {menuMode === 'quick' && menuViewMode === 'text' && (
               <button onClick={() => startListening('menu')} style={micBtn('menu')} title={listening === 'menu' ? 'Stop listening' : 'Voice input'}>
                 <MicIcon />
               </button>
@@ -1004,10 +1011,11 @@ export default function Home() {
             key={wizardSuggestedId || 'wizard'}
             isMobile={isMobile}
             suggestedPkgId={wizardSuggestedId}
-            onComplete={(text) => {
+            onComplete={(text, pkgDropdownValue) => {
               ff('order_details', text);
-              ff('menu_package', 'Custom');
+              ff('menu_package', pkgDropdownValue || 'Custom');
               setMenuItems([]);
+              setMenuViewMode('text');
               setWizardSuggestedId(null);
               setMenuMode('quick');
             }}
@@ -1030,7 +1038,7 @@ export default function Home() {
               </select>
             </div>
 
-            {form.menu_package === 'Custom' ? (
+            {menuViewMode === 'text' ? (
               <div style={{marginBottom:'18px'}}>
                 <textarea style={{...inputStyle, height:'200px', resize:'none', lineHeight:'1.8'}} value={form.order_details} onChange={handleMenu} onKeyDown={handleMenuKey}/>
                 {listening === 'menu'

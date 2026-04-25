@@ -15,7 +15,7 @@ const COLD  = ['12 inch', '14 inch', '16 inch'];
 
 export const WIZARD_PACKAGES = [
   {
-    id: 'med', label: 'Mediterranean Sun', emoji: '🌿',
+    id: 'med', label: 'Mediterranean Sun', emoji: '🌿', dropdownValue: 'Mediterranean Sun Package',
     steps: [
       { id: 'salads', title: 'Cold Food', q: 'Which salads?', items: [
         { n: 'Mediterranean Salad',                                          t: 'size', opts: SALAD },
@@ -44,7 +44,7 @@ export const WIZARD_PACKAGES = [
     ],
   },
   {
-    id: 'fiesta', label: 'Fiesta Del Sol', emoji: '🌮',
+    id: 'fiesta', label: 'Fiesta Del Sol', emoji: '🌮', dropdownValue: 'Fiesta Del Sol (Mexican)',
     steps: [
       { id: 'salads', title: 'Salads', q: 'Which salad?', items: [
         { n: 'Tostada Salad', t: 'size', opts: SALAD },
@@ -77,7 +77,7 @@ export const WIZARD_PACKAGES = [
     ],
   },
   {
-    id: 'cold_buffet', label: 'Signature Cold Buffet', emoji: '🥗',
+    id: 'cold_buffet', label: 'Signature Cold Buffet', emoji: '🥗', dropdownValue: 'Signature Cold Buffet',
     steps: [
       { id: 'sandwiches', title: 'Sandwiches & Wraps', q: 'Which sandwiches & wraps?', items: [
         { n: 'Artisan Sandwiches on Focaccia', t: 'size', opts: COLD },
@@ -102,7 +102,7 @@ export const WIZARD_PACKAGES = [
     ],
   },
   {
-    id: 'bbq', label: 'Barbecue Spread', emoji: '🍖',
+    id: 'bbq', label: 'Barbecue Spread', emoji: '🍖', dropdownValue: 'Barbecue Spread',
     steps: [
       { id: 'cold', title: 'Cold Food', q: 'Which salads?', items: [
         { n: 'Cobb Salad',       t: 'size', opts: SALAD },
@@ -132,7 +132,7 @@ export const WIZARD_PACKAGES = [
     ],
   },
   {
-    id: 'executive', label: 'Executive Package', emoji: '💼',
+    id: 'executive', label: 'Executive Package', emoji: '💼', dropdownValue: 'Executive Package',
     steps: [
       { id: 'salads', title: 'Salads', q: 'Which salads?', items: [
         { n: 'Salad',          t: 'size', opts: SALAD },
@@ -156,7 +156,7 @@ export const WIZARD_PACKAGES = [
     ],
   },
   {
-    id: 'italian', label: 'Italian Package', emoji: '🍝',
+    id: 'italian', label: 'Italian Package', emoji: '🍝', dropdownValue: 'Italian Package',
     steps: [
       { id: 'cold', title: 'Cold Food', q: 'Which cold items?', items: [
         { n: 'Focaccia Sandwiches',  t: 'size', opts: COLD },
@@ -180,7 +180,7 @@ export const WIZARD_PACKAGES = [
     ],
   },
   {
-    id: 'hot_breakfast', label: 'Hot & Cold Breakfast', emoji: '🥞',
+    id: 'hot_breakfast', label: 'Hot & Cold Breakfast', emoji: '🥞', dropdownValue: 'Hot and Cold Breakfast Buffet',
     steps: [
       { id: 'continental', title: 'Continental', q: 'Continental platter?', items: [
         { n: 'Continental Platter with Bagels Muffins Danish Croissants', t: 'size', opts: COLD },
@@ -210,7 +210,7 @@ export const WIZARD_PACKAGES = [
     ],
   },
   {
-    id: 'cold_breakfast', label: 'Cold Continental', emoji: '🥐',
+    id: 'cold_breakfast', label: 'Cold Continental', emoji: '🥐', dropdownValue: 'Cold Continental Breakfast',
     steps: [
       { id: 'continental', title: 'Continental', q: 'Continental platter size?', items: [
         { n: 'Continental Platter with Bagels Muffins Danish Croissants', t: 'size', opts: COLD },
@@ -298,7 +298,7 @@ export default function MenuWizard({ onComplete, onCancel, isMobile, suggestedPk
   const stepSel   = sel[step?.id] || {};
 
   const goNext = () => {
-    if (isLast) onComplete(buildMenuText(pkg, sel, customs));
+    if (isLast) onComplete(buildMenuText(pkg, sel, customs), pkg.dropdownValue);
     else        setStep(i => i + 1);
   };
 
