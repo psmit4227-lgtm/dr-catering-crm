@@ -122,7 +122,7 @@ export default function Home() {
     client_name: '', client_phone: '', client_email: '',
     on_site_contact: '', on_site_phone: '', event_type: '', event_type_other: '',
     delivery_address: '', delivery_date: '', time_out: '', delivery_time: '',
-    guest_count: '', menu_package: 'Custom', order_details: '• ', kitchen_notes: '', notes: ''
+    guest_count: '', menu_package: '', order_details: '• ', kitchen_notes: '', notes: ''
   });
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
@@ -383,7 +383,7 @@ export default function Home() {
         setMenuItems([]);
         ff('order_details', p.menuItems.map(i => `• ${i}`).join('\n'));
         setMenuViewMode('text');
-        ff('menu_package', 'Custom'); // overridden below if package matched
+        ff('menu_package', ''); // overridden below if package matched
       }
       if (p.kitchenNotes) ff('kitchen_notes', p.kitchenNotes);
       if (p.driverNotes) ff('notes', p.driverNotes);
@@ -523,7 +523,7 @@ export default function Home() {
 
   const handlePackageChange = (pkg) => {
     ff('menu_package', pkg);
-    if (pkg === 'Custom') {
+    if (!pkg) {
       ff('order_details', '• ');
       setMenuItems([]);
       setMenuViewMode('text');
@@ -663,7 +663,7 @@ export default function Home() {
   };
 
   const reset = () => {
-    setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', on_site_phone: '', event_type: '', event_type_other: '', delivery_address: '', delivery_date: '', time_out: '', delivery_time: '', guest_count: '', menu_package: 'Custom', order_details: '• ', kitchen_notes: '', notes: '' });
+    setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', on_site_phone: '', event_type: '', event_type_other: '', delivery_address: '', delivery_date: '', time_out: '', delivery_time: '', guest_count: '', menu_package: '', order_details: '• ', kitchen_notes: '', notes: '' });
     setDone(false); setSavedOrder(null); setSuggestions([]); setReturnModal(null); setGuestTotal(0); setGuestHint('');
     setMenuMode('quick'); setMenuViewMode('text'); setWizardSuggestedId(null);
     setAiPlacesQuery(''); setAiDescription(''); setAiMicProcessing(false); setSmartFillError('');
@@ -982,7 +982,7 @@ export default function Home() {
                   borderRadius:'8px', cursor:'pointer', letterSpacing:'0.04em', whiteSpace:'nowrap',
                 }}
               >
-                {mode === 'quick' ? 'Quick Type' : 'Menu Wizard'}
+                {mode === 'quick' ? 'Custom' : 'Signature Selections'}
               </button>
             ))}
             {menuMode === 'quick' && menuViewMode === 'text' && (
@@ -994,26 +994,24 @@ export default function Home() {
         )}
 
         {menuMode === 'wizard' ? (
-          <MenuWizard
-            key={wizardSuggestedId || 'wizard'}
-            isMobile={isMobile}
-            suggestedPkgId={wizardSuggestedId}
-            onComplete={(text, pkgDropdownValue) => {
-              ff('order_details', text);
-              ff('menu_package', pkgDropdownValue || 'Custom');
-              setMenuItems([]);
-              setMenuViewMode('text');
-              setWizardSuggestedId(null);
-              setMenuMode('quick');
-            }}
-            onCancel={() => setMenuMode('quick')}
-          />
-        ) : (
           <>
             <div style={{marginBottom:'18px'}}>
               <label style={labelStyle}>Menu package</label>
-              <select style={inputStyle} value={form.menu_package} onChange={e => handlePackageChange(e.target.value)}>
-                <option value="Custom">Custom</option>
+              <select
+                style={inputStyle}
+                value={form.menu_package}
+                onChange={e => {
+                  const pkg = e.target.value;
+                  ff('menu_package', pkg);
+                  if (pkg) {
+                    const match = WIZARD_PACKAGES.find(wp => wp.dropdownValue === pkg);
+                    if (match) setWizardSuggestedId(match.id);
+                  } else {
+                    setWizardSuggestedId(null);
+                  }
+                }}
+              >
+                <option value="">— Select a package —</option>
                 <option>Mediterranean Sun Package</option>
                 <option>Fiesta Del Sol (Mexican)</option>
                 <option>Signature Cold Buffet</option>
@@ -1025,15 +1023,36 @@ export default function Home() {
               </select>
             </div>
 
-            {menuViewMode === 'text' ? (
-              <div style={{marginBottom:'18px'}}>
-                <textarea style={{...inputStyle, height:'200px', resize:'none', lineHeight:'1.8'}} value={form.order_details} onChange={handleMenu} onKeyDown={handleMenuKey}/>
-                {listening === 'menu'
-                  ? <p style={{fontSize:'11px', color:'#c0392b', margin:'4px 0 0', fontFamily:font}}>Listening... say "next" to start a new item</p>
-                  : <p style={{fontSize:'11px', color:'#b5a58a', margin:'4px 0 0', fontFamily:font}}>Press Enter or tap mic to add items</p>
-                }
-              </div>
-            ) : (
+            {wizardSuggestedId && (
+              <MenuWizard
+                key={wizardSuggestedId}
+                isMobile={isMobile}
+                suggestedPkgId={wizardSuggestedId}
+                onComplete={(text, pkgDropdownValue) => {
+                  ff('order_details', text);
+                  ff('menu_package', pkgDropdownValue || '');
+                  setMenuItems([]);
+                  setMenuViewMode('text');
+                  setWizardSuggestedId(null);
+                  setMenuMode('quick');
+                }}
+                onCancel={() => { setWizardSuggestedId(null); ff('menu_package', ''); }}
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <div style={{marginBottom:'18px'}}>
+              <textarea style={{...inputStyle, height:'200px', resize:'none', lineHeight:'1.8'}} value={form.order_details} onChange={handleMenu} onKeyDown={handleMenuKey}/>
+              {listening === 'menu'
+                ? <p style={{fontSize:'11px', color:'#c0392b', margin:'4px 0 0', fontFamily:font}}>Listening... say "next" to start a new item</p>
+                : <p style={{fontSize:'11px', color:'#b5a58a', margin:'4px 0 0', fontFamily:font}}>Press Enter or tap mic to add items</p>
+              }
+            </div>
+          </>
+        )}
+
+        {menuMode === 'quick' && menuViewMode === 'grid' && (
               <div style={{marginBottom:'18px', border:'1px solid #e8dfc8', borderRadius:'12px', overflow:'hidden'}}>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 148px 68px', gap:'8px', padding:'8px 14px 8px 16px', background:'#faf5e8', borderBottom:'1px solid #e8dfc8'}}>
                   <div style={{fontSize:'10px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font}}>Item</div>
@@ -1067,8 +1086,6 @@ export default function Home() {
                 ))}
               </div>
             )}
-          </>
-        )}
 
         <div style={{marginBottom:'18px'}}>
           <label style={labelStyle}>Additional notes for kitchen <span style={{fontSize:'10px', color:'#b5a58a', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
