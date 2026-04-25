@@ -57,11 +57,12 @@ Fields:
 - driverNotes (string): any delivery logistics mentioned — e.g. gate codes, parking instructions, floor/elevator info, "call before arriving". Leave empty string if none.
 - suggestedPackage (string): if the order clearly matches one of these DR Catering packages, return the exact label — "Mediterranean Sun", "Fiesta Del Sol", "Signature Cold Buffet", "Barbecue Spread", "Executive Package", "Italian Package", "Hot & Cold Breakfast", "Cold Continental". Otherwise return empty string.
 - menuItems (array of strings): each item is a single string. If the speaker mentions a quantity, customization, modifier, or note immediately after an item, append it inline with a dash — do NOT put it in a separate field.
+  Voice dictation splitting: the sales rep may use trigger words to separate items when dictating. Split into a new array element when you see: "next", "next item", "new item", "next one". Do NOT split on "and", "also", or "then" — these appear naturally inside item descriptions.
   Examples:
   - "10 cheeseburgers, add jalapeños" → "10 cheeseburgers - add jalapeños"
   - "20 caesar salads, no croutons" → "20 caesar salads - no croutons"
-  - "50 chicken marsala, extra sauce on the side" → "50 chicken marsala - extra sauce on the side"
-  - "30 veggie wraps" → "30 veggie wraps"
+  - "50 chicken marsala extra sauce on the side next one half tray penne vodka next garlic bread" → ["50 chicken marsala - extra sauce on the side", "one half tray penne vodka", "garlic bread"]
+  - "30 veggie wraps and hummus next new item 20 caesar salads no croutons" → ["30 veggie wraps and hummus", "20 caesar salads - no croutons"]
 
 Time formatting rules:
 - Always include AM or PM explicitly — never return a bare number like "3" or "11"

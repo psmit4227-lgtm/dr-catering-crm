@@ -584,7 +584,7 @@ export default function Home() {
       let interimText = '';
       for (let i = 0; i < e.results.length; i++) {
         const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) { finalText += isMenu ? t.replace(/\b(next item|new item|next)\b/gi, '\n• ') + ' ' : t + ' '; }
+        if (e.results[i].isFinal) { finalText += isMenu ? t.replace(/\b(next item|new item|next one|next)\b/gi, '\n• ') + ' ' : t + ' '; }
         else { interimText += t; }
       }
       speechAccumulatedRef.current = finalText;
@@ -1046,7 +1046,7 @@ export default function Home() {
               <textarea style={{...inputStyle, height:'200px', resize:'none', lineHeight:'1.8'}} value={form.order_details} onChange={handleMenu} onKeyDown={handleMenuKey}/>
               {listening === 'menu'
                 ? <p style={{fontSize:'11px', color:'#c0392b', margin:'4px 0 0', fontFamily:font}}>Listening... say "next" to start a new item</p>
-                : <p style={{fontSize:'11px', color:'#b5a58a', margin:'4px 0 0', fontFamily:font}}>Press Enter or tap mic to add items</p>
+                : <p style={{fontSize:'11px', color:'#b5a58a', margin:'4px 0 0', fontFamily:font}}>Press Enter or tap mic to add items &nbsp;·&nbsp; <span style={{color:'#c9a84c'}}>Tip: say "next" to add a new menu item</span></p>
               }
             </div>
           </>
