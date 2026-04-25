@@ -749,20 +749,7 @@ export default function Home() {
             ✦ AI Smart Fill
           </div>
 
-          {/* Box 1: Address + Places autocomplete */}
-          <div style={{background:'#faf5e8', borderRadius:'12px', border:'1px solid #c9a84c', padding:'10px 14px', marginBottom:'10px', display:'flex', alignItems:'center', gap:'10px', boxShadow:'0 2px 8px rgba(30,16,8,0.05)'}}>
-            <span style={{fontSize:'17px', flexShrink:0, userSelect:'none', lineHeight:1}}>📍</span>
-            <input
-              ref={aiAddressInputRef}
-              style={{flex:1, border:'none', outline:'none', fontSize: isMobile ? '16px' : '15px', color:'#1e1008', fontFamily:font, background:'transparent', padding:'4px 0'}}
-              placeholder="Please enter the delivery address"
-              value={aiPlacesQuery}
-              onChange={e => setAiPlacesQuery(e.target.value)}
-              autoComplete="off"
-            />
-          </div>
-
-          {/* Box 2: Event description + mic + chips + Smart Fill button */}
+          {/* Box: Event description + mic + chips + Smart Fill button */}
           <div style={{background:'#faf5e8', borderRadius:'12px', border:'1px solid #c9a84c', padding:'12px 14px', boxShadow:'0 2px 8px rgba(30,16,8,0.05)'}}>
             <div style={{display:'flex', gap:'10px'}}>
               <span style={{fontSize:'17px', flexShrink:0, marginTop:'3px', userSelect:'none', lineHeight:1}}>💡</span>
