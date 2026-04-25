@@ -40,19 +40,20 @@ Fields:
     • "leaving at X", "done by X", "wrap up by X", "pickup at X"
   Always return in 12-hour format with AM/PM, e.g. "11:00 AM". Leave empty string if not mentioned.
   IMPORTANT: "out" always means pickupTime (leaving), "there" always means arrivalTime (arriving). Never swap them.
-- guestCount (string): extract the guest count and any dietary/group breakdown. The separator word matters:
-  • "including" means a SUBSET of the total — use the word "including" in the output, total stays the first number.
-    Format: "N including X label + Y label"
-  • "plus", "and", or a comma-separated addition means EXTRA guests — use "+" as separator, total is the sum.
-    Format: "N+X label+Y label"
-  Leave empty string if not mentioned.
+- guestCount (integer): the TOTAL number of guests. Always do the math and return ONE final number:
+  • "plus", "and", "+", or listing additional groups = ADDITION — sum all numbers.
+    "50 plus 3" → 53, "40 plus 6 kids" → 46, "50 people, 5 vegan, 2 nut allergy" → 57
+  • "including", "of which", or dietary sub-groups (vegetarian, vegan, gluten free, etc.) = SUBSET — total stays the first number.
+    "10 guests including 3 vegetarian" → 10, "50 with 3 gluten free" → 50
+  Return ONE integer. Use 0 if not mentioned.
+  Put any dietary/group breakdowns in kitchenNotes instead.
   Examples:
-  - "80 guests" → "80"
-  - "10 guests including 3 vegetarian and 3 gluten free" → "10 including 3 vegetarian + 3 gluten free"  (total = 10)
-  - "10 plus 3 vegetarian plus 3 gluten free" → "10+3 vegetarian+3 gluten free"  (total = 16)
-  - "50 people, 5 vegan, 2 nut allergy" → "50+5 vegan+2 nut allergy"  (total = 57)
-  - "40 guests plus 6 kids" → "40+6 kids"  (total = 46)
-- kitchenNotes (string): any allergy info, dietary restrictions, substitutions, or prep instructions mentioned — e.g. "nut allergy", "no pork", "extra sauce on the side". Always include dietary sub-groups here too (e.g. "3 vegetarian, 3 gluten free") even if already captured in guestCount, so the kitchen has a clear note. Leave empty string if none.
+  - "80 guests" → 80
+  - "10 guests including 3 vegetarian and 3 gluten free" → 10
+  - "10 plus 3 vegetarian plus 3 gluten free" → 16
+  - "50 people, 5 vegan, 2 nut allergy" → 57
+  - "40 guests plus 6 kids" → 46
+- kitchenNotes (string): any allergy info, dietary restrictions, substitutions, or prep instructions. ALWAYS include guest dietary sub-groups here (e.g. "3 vegetarian, 3 gluten free" from a guest count like "50 including 3 vegetarian, 3 gluten free"), so the kitchen has a clear note even though guestCount is now just a number. Leave empty string if none.
 - driverNotes (string): any delivery logistics mentioned — e.g. gate codes, parking instructions, floor/elevator info, "call before arriving". Leave empty string if none.
 - menuItems (array of strings): each item is a single string. If the speaker mentions a quantity, customization, modifier, or note immediately after an item, append it inline with a dash — do NOT put it in a separate field.
   Examples:

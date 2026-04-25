@@ -11,6 +11,51 @@ const supabase = createClient(
 
 const genOrderNum = () => 'DRC-' + String(Math.floor(Math.random() * 9000) + 1000);
 
+// Dietary/subset keywords — "with N [keyword]" means a sub-group, not addition
+const DIETARY_RE = /\b(vegetarian|vegan|gluten.?free|nut.?free|dairy.?free|lactose|kosher|halal|pescatarian|plant.?based|allerg|intoleran|celiac)\b/i;
+// Connector words that signal the numbers that follow are SUBSETS, not extra guests
+const SUBSET_RE  = /\b(including|of which|of them|among them)\b/i;
+
+function parseGuestCount(raw) {
+  const str = (raw || '').trim();
+  if (!str) return { total: 0, display: '', hint: '' };
+  const firstNum = parseInt((str.match(/\d+/) || [])[0], 10);
+  if (isNaN(firstNum)) return { total: 0, display: str, hint: '' };
+
+  // Pure number — nothing to compute
+  if (/^\d+$/.test(str)) return { total: firstNum, display: str, hint: '' };
+
+  // Subset connectors → total is the first (and only meaningful) number
+  if (SUBSET_RE.test(str)) {
+    return { total: firstNum, display: String(firstNum), hint: `Calculated from: "${str}"` };
+  }
+
+  // "N with M [dietary term]" → M is a sub-group, not an addition
+  const withDietary = str.match(/\bwith\s+\d+\s+([\w][\w\s-]*)/i);
+  if (withDietary && DIETARY_RE.test(withDietary[1])) {
+    return { total: firstNum, display: String(firstNum), hint: `Calculated from: "${str}"` };
+  }
+
+  // Addition: normalize word operators to "+" then sum all leading numbers
+  const norm = str
+    .replace(/\bplus\b/gi, '+')
+    .replace(/\band\s+(\d)/gi, '+$1')
+    .replace(/\bwith\s+(\d)/gi, '+$1');
+
+  const parts = norm.split('+');
+  let total = 0;
+  const addends = [];
+  for (const part of parts) {
+    const m = part.trim().match(/^(\d+)/);
+    if (m) { const n = parseInt(m[1], 10); total += n; addends.push(n); }
+  }
+
+  if (total > firstNum) {
+    return { total, display: String(total), hint: `Calculated: ${addends.join(' + ')} = ${total}` };
+  }
+  return { total: firstNum, display: String(firstNum), hint: '' };
+}
+
 const FONT = 'Georgia, serif';
 const cardStyle = { background:'#ffffff', borderRadius:'16px', border:'1px solid #e8dfc8', width:'100%', boxSizing:'border-box', boxShadow:'0 4px 12px rgba(30,16,8,0.08)' };
 const authInput = { width:'100%', padding:'11px 14px', border:'1px solid #c9a84c', borderRadius:'12px', fontSize:'15px', color:'#1e1008', boxSizing:'border-box', outline:'none', fontFamily:FONT, background:'#fff' };
@@ -86,6 +131,7 @@ export default function Home() {
   const [returnModal, setReturnModal] = useState(null);
   const [width, setWidth] = useState(0);
   const [guestTotal, setGuestTotal] = useState(0);
+  const [guestHint, setGuestHint] = useState('');
   const [menuItems, setMenuItems] = useState([]);
   const [listening, setListening] = useState(null);
   const recognitionRef = useRef(null);
@@ -186,19 +232,33 @@ export default function Home() {
     return digits.slice(0,3) + '-' + digits.slice(3,6) + '-' + digits.slice(6);
   };
 
-  const handleGuestCount = (val) => {
+  // Called on every keystroke — stores raw value, computes live total
+  const handleGuestChange = (val) => {
     const cleaned = val.replace(/[^0-9+a-zA-Z ]/g, '');
     ff('guest_count', cleaned);
-    // "including" means the sub-groups are a SUBSET of the total — only count the first number
-    if (/\bincluding\b/i.test(cleaned)) {
-      const first = cleaned.match(/^\d+/);
-      setGuestTotal(first ? parseInt(first[0]) : 0);
-    } else {
-      // "+" means additional groups — sum all numbers
-      let total = 0;
-      cleaned.split('+').forEach(seg => { const n = seg.trim().match(/^\d+/); if (n) total += parseInt(n[0]); });
-      setGuestTotal(total);
+    const parsed = parseGuestCount(cleaned);
+    setGuestTotal(parsed.total);
+    setGuestHint('');
+  };
+
+  // Called on blur — replace raw text with the calculated number and show hint
+  const handleGuestBlur = () => {
+    const val = (form.guest_count || '').trim();
+    if (!val) return;
+    const parsed = parseGuestCount(val);
+    if (parsed.display && parsed.display !== val) {
+      ff('guest_count', parsed.display);
+      setGuestTotal(parsed.total);
+      setGuestHint(parsed.hint);
     }
+  };
+
+  // Used by Smart Fill and voice input — parse immediately and store final number
+  const applyGuestCount = (val) => {
+    const parsed = parseGuestCount(val);
+    ff('guest_count', parsed.display || val);
+    setGuestTotal(parsed.total);
+    setGuestHint(parsed.hint);
   };
 
   const handleMenu = (e) => {
@@ -314,7 +374,7 @@ export default function Home() {
       if (p.deliveryDate) ff('delivery_date', p.deliveryDate);
       if (p.arrivalTime) ff('delivery_time', to24h(p.arrivalTime));
       if (p.pickupTime) ff('time_out', to24h(p.pickupTime));
-      if (p.guestCount && p.guestCount !== '0') handleGuestCount(String(p.guestCount));
+      if (p.guestCount && p.guestCount !== '0' && p.guestCount !== 0) applyGuestCount(String(p.guestCount));
       if (p.menuItems?.length) {
         ff('menu_package', 'Custom');
         setMenuItems([]);
@@ -495,7 +555,7 @@ export default function Home() {
       if (field === 'client_phone') ff('client_phone', formatPhone(val));
       else if (field === 'client_name') handleNameChange(val);
       else if (field === 'client_email') ff('client_email', val.replace(/\s+/g, '').toLowerCase());
-      else if (field === 'guest_count') handleGuestCount(val);
+      else if (field === 'guest_count') applyGuestCount(val);
       else ff(field, val);
     };
 
@@ -556,7 +616,7 @@ export default function Home() {
     if (form.event_type === 'Other' && !form.event_type_other) { alert('Please specify the event type'); return; }
     setSaving(true);
     const finalEventType = form.event_type === 'Other' ? `Other: ${form.event_type_other}` : form.event_type;
-    const orderToSave = { ...form, event_type: finalEventType, guest_count: form.guest_count + (guestTotal > 0 ? ` (Total: ${guestTotal})` : '') };
+    const orderToSave = { ...form, event_type: finalEventType };
     const insertRes = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderToSave) });
     const insertData = await insertRes.json();
     if (insertData.error) { alert('Error saving: ' + insertData.error); setSaving(false); return; }
@@ -586,7 +646,7 @@ export default function Home() {
 
   const reset = () => {
     setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', on_site_phone: '', event_type: '', event_type_other: '', delivery_address: '', delivery_date: '', time_out: '', delivery_time: '', guest_count: '', menu_package: 'Custom', order_details: '• ', kitchen_notes: '', notes: '' });
-    setDone(false); setSavedOrder(null); setSuggestions([]); setReturnModal(null); setGuestTotal(0);
+    setDone(false); setSavedOrder(null); setSuggestions([]); setReturnModal(null); setGuestTotal(0); setGuestHint('');
     setAiPlacesQuery(''); setAiDescription(''); setAiMicProcessing(false); setSmartFillError('');
     clearTimeout(aiAutoFillTimerRef.current);
   };
@@ -895,9 +955,10 @@ export default function Home() {
 
         <div style={{marginBottom:'18px'}}>
           <label style={labelStyle}>Number of guests</label>
-          <input style={inputStyle} type="text" placeholder="40 + 6 vegetarian + 3 gluten free" value={form.guest_count} onChange={e => handleGuestCount(e.target.value)}/>
+          <input style={inputStyle} type="text" placeholder='e.g. "50 plus 3" or "50 including 3 vegetarian"' value={form.guest_count} onChange={e => handleGuestChange(e.target.value)} onBlur={handleGuestBlur}/>
           {guestTotal > 0 && <p style={{fontSize:'13px', fontWeight:'700', color:'#1e1008', margin:'6px 0 0', fontFamily:font}}>= {guestTotal} total guests</p>}
-          <p style={{fontSize:'11px', color:'#b5a58a', margin:'4px 0 0', fontFamily:font}}>Use + to separate groups</p>
+          {guestHint && <p style={{fontSize:'11px', color:'#b5a58a', margin:'3px 0 0', fontFamily:font}}>{guestHint}</p>}
+          <p style={{fontSize:'11px', color:'#b5a58a', margin:'4px 0 0', fontFamily:font}}>Use "plus" or + to add groups; "including" for dietary subsets</p>
         </div>
 
         <div style={{marginBottom:'18px'}}>
