@@ -56,6 +56,10 @@ Fields:
 - kitchenNotes (string): any allergy info, dietary restrictions, substitutions, or prep instructions. ALWAYS include guest dietary sub-groups here (e.g. "3 vegetarian, 3 gluten free" from a guest count like "50 including 3 vegetarian, 3 gluten free"), so the kitchen has a clear note even though guestCount is now just a number. Leave empty string if none.
 - driverNotes (string): any delivery logistics mentioned — e.g. gate codes, parking instructions, floor/elevator info, "call before arriving". Leave empty string if none.
 - suggestedPackage (string): if the order clearly matches one of these DR Catering packages, return the exact label — "Mediterranean Sun", "Fiesta Del Sol", "Signature Cold Buffet", "Barbecue Spread", "Executive Package", "Italian Package", "Hot & Cold Breakfast", "Cold Continental". Otherwise return empty string.
+- deliveryMethod (string): return "DR Catering Driver" or "Metrobi" based on these cues:
+    DR Catering Driver triggers: "in-house", "our driver", "DR Catering driver", "we deliver", "our van", "internal delivery"
+    Metrobi triggers: "Metrobi", "3rd party", "third party", "courier", "outsource delivery", "outsourced"
+  If no delivery method is mentioned, return empty string (caller will keep the current default).
 - menuItems (array of strings): each item is a single string. If the speaker mentions a quantity, customization, modifier, or note immediately after an item, append it inline with a dash — do NOT put it in a separate field.
   Voice dictation splitting: the sales rep may use trigger words to separate items when dictating. Split into a new array element when you see: "next", "next item", "new item", "next one". Do NOT split on "and", "also", or "then" — these appear naturally inside item descriptions.
   Examples:

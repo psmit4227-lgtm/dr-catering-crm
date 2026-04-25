@@ -122,7 +122,8 @@ export default function Home() {
     client_name: '', client_phone: '', client_email: '',
     on_site_contact: '', on_site_phone: '', event_type: '', event_type_other: '',
     delivery_address: '', delivery_date: '', time_out: '', delivery_time: '',
-    guest_count: '', menu_package: '', order_details: '• ', kitchen_notes: '', notes: ''
+    guest_count: '', menu_package: '', order_details: '• ', kitchen_notes: '', notes: '',
+    delivery_method: 'DR Catering Driver'
   });
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
@@ -398,6 +399,7 @@ export default function Home() {
           ff('menu_package', match.dropdownValue);
         }
       }
+      if (p.deliveryMethod) ff('delivery_method', p.deliveryMethod);
     } catch (err) {
       setSmartFillError(err.message || 'Could not parse response. Please try again.');
     }
@@ -632,6 +634,7 @@ export default function Home() {
     if (!form.on_site_phone) { alert('Please enter on-site contact phone number'); return; }
     if (!form.order_details || form.order_details === '• ') { alert('Please enter the menu'); return; }
     if (form.event_type === 'Other' && !form.event_type_other) { alert('Please specify the event type'); return; }
+    if (!form.delivery_method) { alert('Please select a delivery method'); return; }
     setSaving(true);
     const finalEventType = form.event_type === 'Other' ? `Other: ${form.event_type_other}` : form.event_type;
     const orderToSave = { ...form, event_type: finalEventType };
@@ -663,7 +666,7 @@ export default function Home() {
   };
 
   const reset = () => {
-    setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', on_site_phone: '', event_type: '', event_type_other: '', delivery_address: '', delivery_date: '', time_out: '', delivery_time: '', guest_count: '', menu_package: '', order_details: '• ', kitchen_notes: '', notes: '' });
+    setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', on_site_phone: '', event_type: '', event_type_other: '', delivery_address: '', delivery_date: '', time_out: '', delivery_time: '', guest_count: '', menu_package: '', order_details: '• ', kitchen_notes: '', notes: '', delivery_method: 'DR Catering Driver' });
     setDone(false); setSavedOrder(null); setSuggestions([]); setReturnModal(null); setGuestTotal(0); setGuestHint('');
     setMenuMode('quick'); setMenuViewMode('text'); setWizardSuggestedId(null);
     setAiPlacesQuery(''); setAiDescription(''); setAiMicProcessing(false); setSmartFillError('');
@@ -1090,6 +1093,40 @@ export default function Home() {
         <div style={{marginBottom:'18px'}}>
           <label style={labelStyle}>Additional notes for kitchen <span style={{fontSize:'10px', color:'#b5a58a', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
           <textarea style={{...inputStyle, height:'80px', resize:'none'}} placeholder="Allergy notes, substitutions, prep instructions..." value={form.kitchen_notes} onChange={e => ff('kitchen_notes', e.target.value)}/>
+        </div>
+
+        {sectionDivider(<span>Delivery Method <span style={required}>*</span></span>)}
+
+        <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'14px', marginBottom:'18px'}}>
+          {[
+            { method: 'DR Catering Driver', icon: '🏠' },
+            { method: 'Metrobi',             icon: '🚚' },
+          ].map(({ method, icon }) => {
+            const sel = form.delivery_method === method;
+            return (
+              <button
+                key={method}
+                type="button"
+                onClick={() => ff('delivery_method', method)}
+                style={{
+                  display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+                  gap:'10px', padding:'22px 16px',
+                  border: sel ? '3px solid #c9a84c' : '1px solid #ddd',
+                  borderRadius:'12px',
+                  background: sel ? '#fff8e7' : '#fff',
+                  cursor:'pointer',
+                  transition:'border 0.2s, background 0.2s',
+                  fontFamily: font,
+                  boxShadow: sel ? '0 0 0 1px #c9a84c20' : 'none',
+                }}
+              >
+                <span style={{fontSize:'30px', lineHeight:1}}>{icon}</span>
+                <span style={{fontSize:'14px', fontWeight: sel ? '700' : '500', color:'#1e1008', fontFamily: font}}>
+                  {method}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         <div style={{fontSize:'11px', color:'#b5a58a', marginBottom:'16px', fontFamily:font}}><span style={required}>*</span> Required fields</div>

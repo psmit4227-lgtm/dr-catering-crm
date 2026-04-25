@@ -145,6 +145,19 @@ export default function OrdersPage() {
                         </span>
                       )}
 
+                      {/* Delivery method badge */}
+                      {order.delivery_method && (
+                        <span style={{
+                          fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:20,
+                          background: order.delivery_method === 'Metrobi' ? '#faf5e8' : ESPRESSO,
+                          color:      order.delivery_method === 'Metrobi' ? GOLD        : GOLD,
+                          border:     order.delivery_method === 'Metrobi' ? `1px solid ${GOLD}` : `1px solid ${ESPRESSO}`,
+                          fontFamily:FONT, whiteSpace:'nowrap', flexShrink:0, letterSpacing:'0.04em',
+                        }}>
+                          {order.delivery_method === 'Metrobi' ? '🚚 Metrobi' : '🏠 DR Catering'}
+                        </span>
+                      )}
+
                       {/* Right-side stats */}
                       <div style={{ display:'flex', gap:20, flex:1, justifyContent:'flex-end', alignItems:'center', flexWrap:'wrap' }}>
                         <div style={{ textAlign:'right', flexShrink:0 }}>

@@ -109,6 +109,12 @@ function measureLayout(doc, order, s, sp) {
   if (order.on_site_phone) cl.push(order.on_site_phone);
   h += Math.max(al.length, cl.length) * lh(s.body, sp) + 2;
 
+  // Delivery method badge (optional)
+  if (order.delivery_method) {
+    h += lh(s.label, sp) + 1;
+    h += lh(s.body, sp) + 6;   // badge text + box padding + gap
+  }
+
   // Driver notes (optional)
   if (order.notes?.trim()) {
     h += lh(s.label, sp) + 1;
@@ -263,7 +269,26 @@ function buildPDF(order) {
   doc.text(ctLines,   PAGE_W / 2 + 4, y, { baseline: "top" });
   y += Math.max(addrLines.length, ctLines.length) * lh(S.body, SP) + 2;
 
-  // 11. Driver notes (optional)
+  // 11. Delivery method badge (optional)
+  if (order.delivery_method) {
+    setFont("normal", S.label, GRAY);
+    doc.text("DELIVERY METHOD", MARGIN, y, { baseline: "top" });
+    y += lh(S.label, SP) + 1;
+
+    const badgeText = order.delivery_method === "Metrobi" ? "DELIVERY: Metrobi" : "DELIVERY: DR Catering Driver";
+    setFont("bold", S.body);
+    const badgeW  = doc.getTextWidth(badgeText) + 16;
+    const badgeH  = lh(S.body, SP) + 4;
+    doc.setFillColor(255, 248, 231);
+    doc.setDrawColor(201, 168, 76);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(MARGIN, y, badgeW, badgeH, 2, 2, "FD");
+    doc.setTextColor(...BLACK);
+    doc.text(badgeText, MARGIN + 8, y + badgeH / 2, { baseline: "middle" });
+    y += badgeH + 4;
+  }
+
+  // 12. Driver notes (optional)
   if (order.notes?.trim()) {
     setFont("normal", S.label, GRAY);
     doc.text("SPECIAL INSTRUCTIONS FOR DRIVER", MARGIN, y, { baseline: "top" });
@@ -275,7 +300,7 @@ function buildPDF(order) {
     y += dLines.length * lh(S.notes, SP) + 2;
   }
 
-  // 12. Footer
+  // 13. Footer
   rule(0.3); y += 2;
   const today = new Date().toLocaleDateString("en-US", {
     year: "numeric", month: "long", day: "numeric",
