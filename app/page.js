@@ -122,7 +122,7 @@ export default function Home() {
     client_name: '', client_phone: '', client_email: '',
     on_site_contact: '', on_site_phone: '', event_type: '', event_type_other: '',
     delivery_address: '', delivery_date: '', time_out: '', delivery_time: '',
-    guest_count: '', menu_package: '', order_details: '• ', kitchen_notes: '', notes: '',
+    guest_count: '', guest_count_original: '', menu_package: '', order_details: '• ', kitchen_notes: '', notes: '',
     delivery_method: 'DR Catering Driver'
   });
   const [saving, setSaving] = useState(false);
@@ -246,11 +246,12 @@ export default function Home() {
     setGuestHint('');
   };
 
-  // Called on blur — replace raw text with the calculated number and show hint
+  // Called on blur — save original text, replace field with calculated number
   const handleGuestBlur = () => {
     const val = (form.guest_count || '').trim();
     if (!val) return;
     const parsed = parseGuestCount(val);
+    ff('guest_count_original', val);
     if (parsed.display && parsed.display !== val) {
       ff('guest_count', parsed.display);
       setGuestTotal(parsed.total);
@@ -258,9 +259,10 @@ export default function Home() {
     }
   };
 
-  // Used by Smart Fill and voice input — parse immediately and store final number
+  // Used by Smart Fill and voice input — preserve original phrase, store numeric total
   const applyGuestCount = (val) => {
     const parsed = parseGuestCount(val);
+    ff('guest_count_original', val);
     ff('guest_count', parsed.display || val);
     setGuestTotal(parsed.total);
     setGuestHint(parsed.hint);
@@ -379,7 +381,7 @@ export default function Home() {
       if (p.deliveryDate) ff('delivery_date', p.deliveryDate);
       if (p.arrivalTime) ff('delivery_time', to24h(p.arrivalTime));
       if (p.pickupTime) ff('time_out', to24h(p.pickupTime));
-      if (p.guestCount && p.guestCount !== '0' && p.guestCount !== 0) applyGuestCount(String(p.guestCount));
+      if (p.guestCount && p.guestCount !== '0' && p.guestCount !== 0) applyGuestCount(p.guestCountOriginal || String(p.guestCount));
       if (p.menuItems?.length) {
         setMenuItems([]);
         ff('order_details', p.menuItems.map(i => `• ${i}`).join('\n'));
@@ -666,7 +668,7 @@ export default function Home() {
   };
 
   const reset = () => {
-    setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', on_site_phone: '', event_type: '', event_type_other: '', delivery_address: '', delivery_date: '', time_out: '', delivery_time: '', guest_count: '', menu_package: '', order_details: '• ', kitchen_notes: '', notes: '', delivery_method: 'DR Catering Driver' });
+    setForm({ order_number: genOrderNum(), client_name: '', client_phone: '', client_email: '', on_site_contact: '', on_site_phone: '', event_type: '', event_type_other: '', delivery_address: '', delivery_date: '', time_out: '', delivery_time: '', guest_count: '', guest_count_original: '', menu_package: '', order_details: '• ', kitchen_notes: '', notes: '', delivery_method: 'DR Catering Driver' });
     setDone(false); setSavedOrder(null); setSuggestions([]); setReturnModal(null); setGuestTotal(0); setGuestHint('');
     setMenuMode('quick'); setMenuViewMode('text'); setWizardSuggestedId(null);
     setAiPlacesQuery(''); setAiDescription(''); setAiMicProcessing(false); setSmartFillError('');

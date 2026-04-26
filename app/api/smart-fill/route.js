@@ -53,6 +53,7 @@ Fields:
   - "10 plus 3 vegetarian plus 3 gluten free" → 16
   - "50 people, 5 vegan, 2 nut allergy" → 57
   - "40 guests plus 6 kids" → 46
+- guestCountOriginal (string): the EXACT original phrase the speaker used to describe guest count, preserving all breakdown info (e.g. "40 plus 6 vegetarian and 3 gluten free", "50 including 3 vegetarian"). If it was a plain number with no breakdown, return empty string "".
 - kitchenNotes (string): any allergy info, dietary restrictions, substitutions, or prep instructions. ALWAYS include guest dietary sub-groups here (e.g. "3 vegetarian, 3 gluten free" from a guest count like "50 including 3 vegetarian, 3 gluten free"), so the kitchen has a clear note even though guestCount is now just a number. Leave empty string if none.
 - driverNotes (string): any delivery logistics mentioned — e.g. gate codes, parking instructions, floor/elevator info, "call before arriving". Leave empty string if none.
 - suggestedPackage (string): if the order clearly matches one of these DR Catering packages, return the exact label — "Mediterranean Sun", "Fiesta Del Sol", "Signature Cold Buffet", "Barbecue Spread", "Executive Package", "Italian Package", "Hot & Cold Breakfast", "Cold Continental". Otherwise return empty string.

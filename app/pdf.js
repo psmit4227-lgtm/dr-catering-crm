@@ -49,6 +49,26 @@ function getMenuItems(order) {
   return [...filtered, "• Beverages", "• Paper boxes"];
 }
 
+// Build a guest count breakdown string for display below the big number.
+// Returns null when no breakdown is needed (plain number).
+function formatGuestBreakdown(order) {
+  const original = (order.guest_count_original || "").trim();
+  if (!original || /^\d+$/.test(original)) return null;
+
+  // Subset: "50 including 6 vegetarian" → "50 (includes 6 vegetarian)"
+  if (/\b(including|of which|of them|among them)\b/i.test(original)) {
+    const base  = (original.match(/^\d+/) || [""])[0];
+    const after = original.replace(/^\d+\s+(?:including|of which|of them|among them)\s*/i, "");
+    return `${base} (includes ${after})`;
+  }
+
+  // Addition: normalize "plus" → "+" and append "= N total"
+  const normalized = original.replace(/\bplus\b/gi, "+").replace(/\s{2,}/g, " ").trim();
+  const total = order.guest_count;
+  if (total && String(total) !== "0") return `${normalized} = ${total} total`;
+  return normalized;
+}
+
 // Measure total layout height for given sizes + spacing.
 // Sets jsPDF font state as a side-effect (safe before rendering).
 function measureLayout(doc, order, s, sp) {
@@ -70,9 +90,18 @@ function measureLayout(doc, order, s, sp) {
   // Date/time labels + values
   h += lh(s.label, sp) + 1;
   h += lh(s.body, sp)  + 3;
-  // Guest count label + HUGE value
+  // Guest count label + HUGE value + optional breakdown
   h += lh(s.label, sp) + 1;
-  h += lh(guestPt(s.body), sp) + 4;
+  h += lh(guestPt(s.body), sp) + 2;
+  const bd = formatGuestBreakdown(order);
+  if (bd) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(s.notes);
+    const bdLines = doc.splitTextToSize(bd, CW - 4);
+    h += bdLines.length * lh(s.notes, sp) + 3;
+  } else {
+    h += 4;
+  }
   // Rule 3 (heavy) + gap
   h += 1.5 + 4;
   // MENU heading
@@ -210,14 +239,24 @@ function buildPDF(order) {
   doc.text(formatTime(order.delivery_time),  col3, y, { baseline: "top" });
   y += lh(S.body, SP) + 3;
 
-  // 6. Guest count — centered and HUGE
+  // 6. Guest count — centered and HUGE + optional breakdown
   setFont("normal", S.label, GRAY);
   doc.text("NUMBER OF GUESTS", CX, y, { align: "center", baseline: "top" });
   y += lh(S.label, SP) + 1;
 
   setFont("bold", GP);
   doc.text(String(order.guest_count || "—"), CX, y, { align: "center", baseline: "top" });
-  y += lh(GP, SP) + 4;
+  y += lh(GP, SP) + 2;
+
+  const guestBreakdown = formatGuestBreakdown(order);
+  if (guestBreakdown) {
+    setFont("normal", S.notes, GRAY);
+    const bdLines = doc.splitTextToSize(guestBreakdown, CW - 4);
+    doc.text(bdLines, CX, y, { align: "center", baseline: "top" });
+    y += bdLines.length * lh(S.notes, SP) + 3;
+  } else {
+    y += 4;
+  }
 
   rule(0.7); y += 4;
 
