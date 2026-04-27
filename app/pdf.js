@@ -12,6 +12,9 @@ const BLACK    = [15, 18, 20];
 const GRAY     = [120, 120, 120];
 const RULE_CLR = [210, 210, 210];
 const NOTE_BG  = [255, 252, 220];        // pale amber for kitchen notes
+const GOLD     = [201, 168, 76];         // #c9a84c — bullets, section underline, prep border
+const GOLD_DK  = [139, 105, 20];         // #8b6914 — modifier / inline prep text
+const PREP_BG  = [255, 248, 231];        // #fff8e7 — prep note box fill
 
 // Line height: font pt → mm, scaled by spacing factor
 const lh = (pt, sp) => pt * PT_TO_MM * sp;
@@ -40,13 +43,216 @@ function formatTime(t) {
 }
 
 function getMenuItems(order) {
-  const raw = (order.order_details || "• ")
-    .split("\n").map(l => l.trim())
-    .filter(l => l && l !== "•" && l !== "• ");
+  const raw = (order.order_details || "")
+    .split("\n").map(l => l.replace(/\s+$/, ""));
   const filtered = raw.filter(
     l => !/^\s*•?\s*beverages?\s*$/i.test(l) && !/^\s*•?\s*paper\s+boxes?\s*$/i.test(l)
   );
+  const isBlank = l => /^\s*•?\s*$/.test(l);
+  while (filtered.length && isBlank(filtered[0])) filtered.shift();
+  while (filtered.length && isBlank(filtered[filtered.length - 1])) filtered.pop();
   return [...filtered, "• Beverages", "• Paper boxes"];
+}
+
+// ── Rich menu line parsing ───────────────────────────────────────────────────
+const QTY_UNITS = "oz|lb|lbs|pt|qt|gal|pint|pints|quart|quarts|tray|trays|pan|pans|gallon|gallons|dozen|dz|ct|count|piece|pieces|pcs|each";
+const QTY_LEAD_RE  = new RegExp(`^((?:\\d+(?:\\/\\d+)?(?:\\.\\d+)?)\\s*(?:${QTY_UNITS})?)\\s+(.+)$`, "i");
+const QTY_TRAIL_RE = new RegExp(`^(.+?)\\s+[-–]\\s+(\\d+(?:\\/\\d+)?(?:\\.\\d+)?(?:\\s*(?:${QTY_UNITS}))?)$`, "i");
+const PREP_LINE_RE   = /^(?:please\s+)?(?:pack(?:\s+(?:in|hot|cold|on|with))?|make\s+sure|please\s+send|send|ensure|don'?t\s+forget|remember\s+to|label)\b/i;
+const PREP_INLINE_RE = /\s+[-–]\s+((?:please\s+)?(?:pack(?:\s+(?:in|hot|cold|on|with))?|make\s+sure|please\s+send|send|ensure|don'?t\s+forget|remember\s+to)[^()]*)$/i;
+
+function parseMenuLine(rawLine) {
+  if (!rawLine || !rawLine.trim()) return { type: "blank" };
+
+  let stripped = rawLine.trim().replace(/^•\s*/, "").trim();
+  let isSub = false;
+  if (/^[-*›]\s+/.test(stripped)) {
+    isSub = true;
+    stripped = stripped.replace(/^[-*›]\s+/, "");
+  }
+  if (!stripped) return { type: "blank" };
+
+  if (!isSub && /:\s*$/.test(stripped)) {
+    return { type: "section", text: stripped.replace(/:\s*$/, "").trim() };
+  }
+
+  if (PREP_LINE_RE.test(stripped)) {
+    return { type: "prep", text: stripped, sub: isSub };
+  }
+
+  let mainText = stripped;
+
+  let inlinePrep = null;
+  const inlineMatch = mainText.match(PREP_INLINE_RE);
+  if (inlineMatch) {
+    inlinePrep = inlineMatch[1].trim();
+    mainText = mainText.slice(0, inlineMatch.index).trim();
+  }
+
+  let modifier = null;
+  const modMatch = mainText.match(/^(.*?)\s*\(([^()]+)\)\s*$/);
+  if (modMatch) {
+    mainText = modMatch[1].trim();
+    modifier = modMatch[2].trim();
+  }
+
+  let quantity = null;
+  const trailMatch = mainText.match(QTY_TRAIL_RE);
+  if (trailMatch) {
+    quantity = trailMatch[2].trim();
+    mainText = trailMatch[1].trim();
+  } else {
+    const leadMatch = mainText.match(QTY_LEAD_RE);
+    if (leadMatch) {
+      quantity = leadMatch[1].trim();
+      mainText = leadMatch[2].trim();
+    }
+  }
+
+  if (!mainText && !quantity && !modifier && !inlinePrep) return { type: "blank" };
+  return { type: isSub ? "sub" : "item", quantity, text: mainText, modifier, inlinePrep };
+}
+
+// Process (measure or render) a parsed menu line. Returns vertical advance in mm.
+// mode: "measure" or "render".
+function processMenuLine(doc, parsed, y, S, SP, mode, isFirst) {
+  if (parsed.type === "blank") {
+    return Math.max(1.5, lh(S.menu, SP) * 0.45);
+  }
+
+  if (parsed.type === "section") {
+    const sectSize = S.menu * 1.05;
+    const topPad   = isFirst ? 0.5 : 2.5;
+    const headerH  = lh(sectSize, SP);
+    const ulOffset = headerH * 0.78;
+    const bottomPad = 1.6;
+    if (mode === "render") {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(sectSize);
+      doc.setTextColor(...BLACK);
+      const text = parsed.text.toUpperCase();
+      doc.text(text, MARGIN, y + topPad, { baseline: "top" });
+      const w = doc.getTextWidth(text);
+      doc.setDrawColor(...GOLD);
+      doc.setLineWidth(0.4);
+      doc.line(MARGIN, y + topPad + ulOffset + 0.4, MARGIN + w, y + topPad + ulOffset + 0.4);
+    }
+    return topPad + headerH + bottomPad;
+  }
+
+  if (parsed.type === "prep") {
+    const padX = 3, padY = 1.6;
+    const startX = MARGIN + 12;
+    const boxW = CW - 14;
+    const fontSize = S.notes;
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(fontSize);
+    const lines = doc.splitTextToSize(parsed.text, boxW - padX * 2);
+    const textH = lines.length * lh(fontSize, SP);
+    const boxH = textH + padY * 2;
+    if (mode === "render") {
+      doc.setFillColor(...PREP_BG);
+      doc.setDrawColor(...GOLD);
+      doc.setLineWidth(0.25);
+      doc.roundedRect(startX, y, boxW, boxH, 1.2, 1.2, "FD");
+      doc.setTextColor(...GOLD_DK);
+      doc.text(lines, startX + padX, y + padY, { baseline: "top" });
+    }
+    return boxH + 1.5;
+  }
+
+  // item or sub
+  const sub = parsed.type === "sub";
+  const baseSize = sub ? Math.max(8, S.menu * 0.94) : S.menu;
+  const startX = MARGIN + (sub ? 12 : 2);
+  const maxX = PAGE_W - MARGIN;
+  const lineGap = lh(baseSize, SP);
+
+  const bullet = sub ? "›  " : "•  ";
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(baseSize);
+  const bulletW = doc.getTextWidth(bullet);
+  const contStartX = startX + bulletW;
+
+  if (mode === "render") {
+    doc.setTextColor(...GOLD);
+    doc.text(bullet, startX, y, { baseline: "top" });
+  }
+  let curX = contStartX;
+  let curY = y;
+  let lineCount = 1;
+
+  if (parsed.quantity) {
+    doc.setFont("helvetica", "bold");
+    if (mode === "render") {
+      doc.setTextColor(...BLACK);
+      doc.text(parsed.quantity, curX, curY, { baseline: "top" });
+    }
+    curX += doc.getTextWidth(parsed.quantity);
+    doc.setFont("helvetica", "normal");
+    curX += doc.getTextWidth("  ");
+  }
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(baseSize);
+  if (parsed.text) {
+    const remW = Math.max(maxX - curX, 20);
+    const textLines = doc.splitTextToSize(parsed.text, remW);
+    if (mode === "render") {
+      doc.setTextColor(...BLACK);
+      textLines.forEach((tl, i) => {
+        const tx = i === 0 ? curX : contStartX;
+        doc.text(tl, tx, curY + i * lineGap, { baseline: "top" });
+      });
+    }
+    if (textLines.length > 1) {
+      lineCount += textLines.length - 1;
+      curY += (textLines.length - 1) * lineGap;
+      curX = contStartX + doc.getTextWidth(textLines[textLines.length - 1]);
+    } else {
+      curX += doc.getTextWidth(textLines[0]);
+    }
+  }
+
+  const renderTrailing = (text, gapBefore) => {
+    const modSize = Math.max(8, baseSize * 0.92);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(modSize);
+    const inlineText = gapBefore + text;
+    const inlineW = doc.getTextWidth(inlineText);
+    if (curX + inlineW <= maxX) {
+      if (mode === "render") {
+        doc.setTextColor(...GOLD_DK);
+        doc.text(inlineText, curX, curY, { baseline: "top" });
+      }
+      curX += inlineW;
+    } else {
+      curY += lineGap;
+      lineCount += 1;
+      const wrapW = Math.max(maxX - contStartX, 20);
+      const wrapped = doc.splitTextToSize(text, wrapW);
+      if (mode === "render") {
+        doc.setTextColor(...GOLD_DK);
+        wrapped.forEach((wl, i) => {
+          doc.text(wl, contStartX, curY + i * lineGap, { baseline: "top" });
+        });
+      }
+      if (wrapped.length > 1) {
+        lineCount += wrapped.length - 1;
+        curY += (wrapped.length - 1) * lineGap;
+        curX = contStartX + doc.getTextWidth(wrapped[wrapped.length - 1]);
+      } else {
+        curX = contStartX + doc.getTextWidth(wrapped[0]);
+      }
+    }
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(baseSize);
+  };
+
+  if (parsed.modifier) renderTrailing(`(${parsed.modifier})`, "  ");
+  if (parsed.inlinePrep) renderTrailing(`— ${parsed.inlinePrep}`, "  ");
+
+  return lineCount * lineGap;
 }
 
 // Build a guest count breakdown string for display below the big number.
@@ -107,13 +313,16 @@ function measureLayout(doc, order, s, sp) {
   // MENU heading
   h += lh(s.sect, sp) + 2;
 
-  // Menu items
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(s.menu);
+  // Menu items (rich formatting)
+  let firstNonBlank = true;
   for (const item of menuItems) {
-    const text  = /^•/.test(item) ? item : "• " + item;
-    const lines = doc.splitTextToSize(text, CW - 4);
-    h += lines.length * lh(s.menu, sp);
+    const parsed = parseMenuLine(item);
+    if (parsed.type === "blank") {
+      if (!firstNonBlank) h += processMenuLine(doc, parsed, h, s, sp, "measure", false);
+      continue;
+    }
+    h += processMenuLine(doc, parsed, h, s, sp, "measure", firstNonBlank);
+    firstNonBlank = false;
   }
   h += 3;
 
@@ -265,13 +474,16 @@ function buildPDF(order) {
   doc.text("MENU", CX, y, { align: "center", baseline: "top" });
   y += lh(S.sect, SP) + 2;
 
-  // 8. Menu items
-  setFont("normal", S.menu);
+  // 8. Menu items (rich formatting: sections, sub-items, prep notes, quantity bolding)
+  let firstNonBlank = true;
   for (const item of menuItems) {
-    const text  = /^•/.test(item) ? item : "• " + item;
-    const lines = doc.splitTextToSize(text, CW - 4);
-    doc.text(lines, MARGIN + 2, y, { baseline: "top" });
-    y += lines.length * lh(S.menu, SP);
+    const parsed = parseMenuLine(item);
+    if (parsed.type === "blank") {
+      if (!firstNonBlank) y += processMenuLine(doc, parsed, y, S, SP, "render", false);
+      continue;
+    }
+    y += processMenuLine(doc, parsed, y, S, SP, "render", firstNonBlank);
+    firstNonBlank = false;
   }
   y += 3;
 
