@@ -81,6 +81,29 @@ function detectDressings(menuText) {
   return `Dressing - ${detected.map(d => `${d.size} ${d.name}`).join(" AND ")}`;
 }
 
+// ── Food-group categorization for auto-spacing ────────────────────────────────
+// Match priority differs from output order — multi-word phrases & specific
+// containers (wraps/sandwiches) win over generic single-word fallbacks
+// (e.g. "chicken caesar wrap" → Sandwiches, not Hot Food or Salads).
+const GROUP_KEYWORDS = {
+  Sandwiches: [/\bfocaccia\b/, /\bsandwich/, /\bwrap/, /\bhero\b/, /\bsub\b/, /\bpanini/, /\bbagel/, /\bcroissant/, /\bmuffin/, /\bdanish/],
+  ColdFood:   [/\bhummus\b/, /\bpita\b/, /\bolives?\b/, /\bcold\s+pasta\b/, /\bpotato\s+salad\b/, /\bfruit\s+salad\b/, /\bfresh\s+fruit\b/, /\btortilla\s+chips\b/, /\bchips\b/, /\bdip\b/, /\btatziki\b/, /\bguacamole\b/, /\bsalsa\b/, /\bsour\s+cream\b/, /\bcheese\s+platter\b/, /\bantipasto\b/],
+  Desserts:   [/\bcookies?\b/, /\bbrownies?\b/, /\btiramisu\b/, /\bcannoli\b/, /\bcakes?\b/, /\bfruit\s+platter\b/, /\bwatermelon\b/, /\byogurt\b/, /\bgranola\b/],
+  Salads:     [/\bsalads?\b/, /\bcaesar\b/, /\bceaser\b/, /\bmediterranean\b/, /\beliza\b/, /\bgarden\b/, /\bquinoa\b/, /\bcobb\b/, /\btossed\b/],
+  Sides:      [/\bcornbread\b/, /\bvegetables\b/, /\bbroccoli\b/, /\bbeans\b/, /\bcorn\b/, /\bmashed\b/, /\bspanakopita\b/, /\bfalafel\b/],
+  HotFood:    [/\bchicken\b/, /\bbeef\b/, /\bpork\b/, /\bribs\b/, /\beggplant\b/, /\bmarsala\b/, /\bparm\b/, /\bparmigiana\b/, /\bvodka\b/, /\balfredo\b/, /\bpasta\b/, /\bpenne\b/, /\bziti\b/, /\blasagna\b/, /\bmeatballs?\b/, /\bshrimp\b/, /\bsalmon\b/, /\bfish\b/, /\btray\b/, /\bhot\b/, /\bsoup\b/, /\brice\b/, /\bmac\b/, /\btacos?\b/, /\bburritos?\b/, /\bfries\b/, /\beggs\b/, /\bbacon\b/, /\bfrench\s+toast\b/, /\bsausage\b/, /\bskewers?\b/, /\bstir\s+fry\b/, /\bgarlic\s+bread\b/],
+};
+const MATCH_ORDER  = ["Sandwiches", "ColdFood", "Desserts", "Salads", "Sides", "HotFood"];
+const OUTPUT_ORDER = ["Salads", "ColdFood", "Sandwiches", "HotFood", "Uncategorized", "Sides", "Desserts"];
+
+function categorizeMenuItem(text) {
+  const t = (text || "").toLowerCase();
+  for (const group of MATCH_ORDER) {
+    for (const re of GROUP_KEYWORDS[group]) if (re.test(t)) return group;
+  }
+  return "Uncategorized";
+}
+
 function getMenuItems(order) {
   const raw = (order.order_details || "")
     .split("\n").map(l => l.replace(/\s+$/, ""));
@@ -94,10 +117,18 @@ function getMenuItems(order) {
   while (filtered.length && isBlank(filtered[filtered.length - 1])) filtered.pop();
 
   const dressingLine = detectDressings(filtered.join("\n"));
+
+  // Group user items by food category and add blank-line separators.
+  const grouped = groupMenuItems(filtered);
+
   const tail = [];
   if (dressingLine) tail.push(`• ${dressingLine}`);
   tail.push("• Beverages", "• Paper boxes");
-  return [...filtered, ...tail];
+
+  const result = [...grouped];
+  if (grouped.length > 0) result.push(""); // blank line above defaults
+  result.push(...tail);
+  return result;
 }
 
 // ── Rich menu line parsing ───────────────────────────────────────────────────
@@ -159,11 +190,68 @@ function parseMenuLine(rawLine) {
   return { type: isSub ? "sub" : "item", quantity, text: mainText, modifier, inlinePrep };
 }
 
+// Group menu lines by food category. Sub-items / prep notes / inline modifiers
+// stay attached to their parent item. Section headers (lines ending ":") are
+// treated as user-curated structure — when present, items keep their original
+// order. Otherwise items are sorted into OUTPUT_ORDER. A blank line is inserted
+// between blocks of different categories so the kitchen has writing room.
+function groupMenuItems(items) {
+  const blocks = [];
+  let current = null;
+  let hasSection = false;
+
+  const orderIdxOf = (cat) => {
+    const i = OUTPUT_ORDER.indexOf(cat);
+    return i === -1 ? OUTPUT_ORDER.indexOf("Uncategorized") : i;
+  };
+
+  for (const line of items) {
+    const parsed = parseMenuLine(line);
+    if (parsed.type === "blank") continue; // dropped — auto-blanks regenerated below
+    if (parsed.type === "section") {
+      hasSection = true;
+      blocks.push({ lines: [line], category: `_section_${blocks.length}`, sortKey: blocks.length + 1000 });
+      current = null;
+      continue;
+    }
+    if (parsed.type === "item") {
+      const cat = categorizeMenuItem(line);
+      current = { lines: [line], category: cat, sortKey: orderIdxOf(cat) };
+      blocks.push(current);
+      continue;
+    }
+    // sub or prep — attach to the most recent item block
+    if (current) {
+      current.lines.push(line);
+    } else {
+      const cat = categorizeMenuItem(line);
+      current = { lines: [line], category: cat, sortKey: orderIdxOf(cat) };
+      blocks.push(current);
+    }
+  }
+
+  if (!hasSection) {
+    blocks.forEach((b, i) => { b.origIdx = i; });
+    blocks.sort((a, b) => a.sortKey !== b.sortKey ? a.sortKey - b.sortKey : a.origIdx - b.origIdx);
+  }
+
+  const out = [];
+  let prevCat = null;
+  for (const b of blocks) {
+    if (prevCat !== null && b.category !== prevCat) out.push("");
+    for (const line of b.lines) out.push(line);
+    prevCat = b.category;
+  }
+  return out;
+}
+
 // Process (measure or render) a parsed menu line. Returns vertical advance in mm.
 // mode: "measure" or "render".
 function processMenuLine(doc, parsed, y, S, SP, mode, isFirst) {
   if (parsed.type === "blank") {
-    return Math.max(1.5, lh(S.menu, SP) * 0.45);
+    // ~1.5x line-height of vertical space — gives the kitchen room to handwrite
+    // notes between food groups. Auto-fit will shrink fonts if it overflows.
+    return Math.max(2, lh(S.menu, SP) * 1.5);
   }
 
   if (parsed.type === "section") {
