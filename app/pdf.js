@@ -15,6 +15,14 @@ const NOTE_BG  = [255, 252, 220];        // pale amber for kitchen notes
 const GOLD     = [201, 168, 76];         // #c9a84c — bullets, section underline, prep border
 const GOLD_DK  = [139, 105, 20];         // #8b6914 — modifier / inline prep text
 const PREP_BG  = [255, 248, 231];        // #fff8e7 — prep note box fill
+const ESPRESSO = [30, 16, 8];            // #1e1008 — delivery-order box border
+
+// Top-right "DELIVERY ORDER #" handwriting box. Logistics writes a route stop
+// number with a marker after printing; box must be readable on a stack of 10.
+const ORDER_BOX_W = 64;
+const ORDER_BOX_H = 38;
+const ORDER_BOX_X = PAGE_W - MARGIN - ORDER_BOX_W;
+const ORDER_BOX_Y = MARGIN;
 
 // Line height: font pt → mm, scaled by spacing factor
 const lh = (pt, sp) => pt * PT_TO_MM * sp;
@@ -425,6 +433,10 @@ function measureLayout(doc, order, s, sp) {
   h += lh(s.client, sp) + 1;
   // Phone
   h += lh(s.label, sp) + 3;
+  // Reserve enough vertical space for the top-right delivery-order box —
+  // box height is fixed regardless of font reduction, so the header section
+  // must consume at least ORDER_BOX_H + a small gap before continuing.
+  h = Math.max(h, ORDER_BOX_H + 2);
   // Rule 2 + gap
   h += 1.5 + 3;
   // Date/time labels + values
@@ -534,36 +546,62 @@ function buildPDF(order) {
     doc.setTextColor(...color);
   };
 
-  const rule = (weight = 0.4) => {
+  const rule = (weight = 0.4, x1 = MARGIN, x2 = PAGE_W - MARGIN) => {
     doc.setDrawColor(...RULE_CLR);
     doc.setLineWidth(weight);
-    doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+    doc.line(x1, y, x2, y);
     y += 1.5;
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
 
+  // 0. Top-right "DELIVERY ORDER #" handwriting box (drawn first so the
+  //    surrounding header text is centered into the LEFT zone beside it).
+  doc.setDrawColor(...ESPRESSO);
+  doc.setLineWidth(0.7);
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(ORDER_BOX_X, ORDER_BOX_Y, ORDER_BOX_W, ORDER_BOX_H, 3, 3, "FD");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(Math.max(7, S.label + 2));
+  doc.setTextColor(...GOLD_DK);
+  doc.text(
+    "DELIVERY ORDER #",
+    ORDER_BOX_X + ORDER_BOX_W / 2,
+    ORDER_BOX_Y + 4,
+    { align: "center", baseline: "top" }
+  );
+
+  // Header text now centers in the LEFT zone (margin → box left edge) so it
+  // sits visually balanced beside the delivery-order box.
+  const leftCX = (MARGIN + ORDER_BOX_X) / 2;
+
   // 1. Title
   setFont("bold", S.title);
-  doc.text("Event Menu", CX, y, { align: "center", baseline: "top" });
+  doc.text("Event Menu", leftCX, y, { align: "center", baseline: "top" });
   y += lh(S.title, SP) + 1.5;
 
   // 2. Order number
   setFont("normal", S.label, GRAY);
-  doc.text(order.order_number || "DRC-0000", CX, y, { align: "center", baseline: "top" });
+  doc.text(order.order_number || "DRC-0000", leftCX, y, { align: "center", baseline: "top" });
   y += lh(S.label, SP) + 3;
 
-  rule(); y += 3;
+  // First rule sits inside the box's vertical span — shorten it to stop
+  // before the box so the line doesn't cross the corner.
+  rule(0.4, MARGIN, ORDER_BOX_X - 2); y += 3;
 
   // 3. Client name
   setFont("bold", S.client);
-  doc.text(order.client_name || "—", CX, y, { align: "center", baseline: "top" });
+  doc.text(order.client_name || "—", leftCX, y, { align: "center", baseline: "top" });
   y += lh(S.client, SP) + 1;
 
   // 4. Phone
   setFont("normal", S.label, GRAY);
-  doc.text(order.client_phone || "—", CX, y, { align: "center", baseline: "top" });
+  doc.text(order.client_phone || "—", leftCX, y, { align: "center", baseline: "top" });
   y += lh(S.label, SP) + 3;
+
+  // Ensure the next rule + date row start below the box bottom, regardless
+  // of how much font reduction has been applied.
+  y = Math.max(y, ORDER_BOX_Y + ORDER_BOX_H + 2);
 
   rule(); y += 3;
 
