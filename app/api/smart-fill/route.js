@@ -63,11 +63,13 @@ Fields:
   If no delivery method is mentioned, return empty string (caller will keep the current default).
 - menuItems (array of strings): each item is a single string. If the speaker mentions a quantity, customization, modifier, or note immediately after an item, append it inline with a dash — do NOT put it in a separate field.
   Voice dictation splitting: the sales rep may use trigger words to separate items when dictating. Split into a new array element when you see: "next", "next item", "new item", "next one". Do NOT split on "and", "also", or "then" — these appear naturally inside item descriptions.
+  Salad shortcut recognition: when the rep uses casual shortcuts for salads, normalize the size/name but KEEP both the size and salad name in the original-style text. E.g. "half ceaser" → "1/2 Caesar Salad", "full garden" → "Full Garden Salad", "1/2 mediterranean" → "1/2 Mediterranean Salad", "full eliza" → "Full Eliza Salad". The PDF generator detects salads from these strings to auto-add a dressings line — so do NOT add a separate dressing item to menuItems yourself; size words ("1/2", "half", "full", "large", "small") and the salad name (Caesar, Mediterranean, Garden, Eliza) must remain in the menu_items text.
   Examples:
   - "10 cheeseburgers, add jalapeños" → "10 cheeseburgers - add jalapeños"
-  - "20 caesar salads, no croutons" → "20 caesar salads - no croutons"
+  - "20 caesar salads, no croutons" → "20 Caesar Salads - no croutons"
   - "50 chicken marsala extra sauce on the side next one half tray penne vodka next garlic bread" → ["50 chicken marsala - extra sauce on the side", "one half tray penne vodka", "garlic bread"]
-  - "30 veggie wraps and hummus next new item 20 caesar salads no croutons" → ["30 veggie wraps and hummus", "20 caesar salads - no croutons"]
+  - "30 veggie wraps and hummus next new item 20 caesar salads no croutons" → ["30 veggie wraps and hummus", "20 Caesar Salads - no croutons"]
+  - "half ceaser next full garden" → ["1/2 Caesar Salad", "Full Garden Salad"]
 
 Time formatting rules:
 - Always include AM or PM explicitly — never return a bare number like "3" or "11"

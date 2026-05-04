@@ -42,16 +42,62 @@ function formatTime(t) {
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
 }
 
+// Auto-detect dressings from salad mentions in the menu text.
+// Returns a single string like "Dressing - Large Caesar AND Small House", or null.
+function detectDressings(menuText) {
+  const dressingMap = [
+    { keyword: /mediterranean/i,    name: "Regular Balsamic" },
+    { keyword: /\beliza\b/i,        name: "Creamy Balsamic"  },
+    { keyword: /\b(?:caesar|ceaser)\b/i, name: "Caesar"      },
+    { keyword: /\bgarden\b/i,       name: "House"            },
+  ];
+
+  // Split on lines, commas, " and ", " plus " so each segment carries one salad.
+  const segments = (menuText || "")
+    .split(/\n|,|\s+and\s+|\s+plus\s+/i)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const detected = [];
+  const seen = new Set();
+  for (const seg of segments) {
+    for (const { keyword, name } of dressingMap) {
+      if (!keyword.test(seg)) continue;
+      if (seen.has(name)) continue;
+      let size;
+      if (/(?:1\/2|\bhalf\b|\bsmall\b)/i.test(seg)) {
+        size = "Small";
+      } else if (/(?:\bfull\b|\blarge\b|\b1\s+tray\b)/i.test(seg)) {
+        size = "Large";
+      } else {
+        size = "Large";
+      }
+      detected.push({ size, name });
+      seen.add(name);
+    }
+  }
+
+  if (detected.length === 0) return null;
+  return `Dressing - ${detected.map(d => `${d.size} ${d.name}`).join(" AND ")}`;
+}
+
 function getMenuItems(order) {
   const raw = (order.order_details || "")
     .split("\n").map(l => l.replace(/\s+$/, ""));
   const filtered = raw.filter(
-    l => !/^\s*•?\s*beverages?\s*$/i.test(l) && !/^\s*•?\s*paper\s+boxes?\s*$/i.test(l)
+    l => !/^\s*•?\s*beverages?\s*$/i.test(l)
+      && !/^\s*•?\s*paper\s+(?:boxes?|goods?)\s*$/i.test(l)
+      && !/^\s*•?\s*dressings?\b/i.test(l)
   );
   const isBlank = l => /^\s*•?\s*$/.test(l);
   while (filtered.length && isBlank(filtered[0])) filtered.shift();
   while (filtered.length && isBlank(filtered[filtered.length - 1])) filtered.pop();
-  return [...filtered, "• Beverages", "• Paper boxes"];
+
+  const dressingLine = detectDressings(filtered.join("\n"));
+  const tail = [];
+  if (dressingLine) tail.push(`• ${dressingLine}`);
+  tail.push("• Beverages", "• Paper boxes");
+  return [...filtered, ...tail];
 }
 
 // ── Rich menu line parsing ───────────────────────────────────────────────────
@@ -310,6 +356,44 @@ function measureLayout(doc, order, s, sp) {
   }
   // Rule 3 (heavy) + gap
   h += 1.5 + 4;
+
+  // ── Metadata block (now ABOVE the menu) ──
+  // Address / contact labels + values
+  h += lh(s.label, sp) + 1;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(s.body);
+  const al = doc.splitTextToSize(order.delivery_address || "—", CW / 2 - 6);
+  const cl = [order.on_site_contact || "—"];
+  if (order.on_site_phone) cl.push(order.on_site_phone);
+  h += Math.max(al.length, cl.length) * lh(s.body, sp) + 3;
+
+  // Kitchen notes (optional, yellow box)
+  if (order.kitchen_notes?.trim()) {
+    h += lh(s.label, sp) + 1;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(s.notes);
+    const kl = doc.splitTextToSize(order.kitchen_notes.trim(), CW - 12);
+    h += kl.length * lh(s.notes, sp) + 4 + 2 + 3;
+  }
+
+  // Driver notes (optional, yellow box)
+  if (order.notes?.trim()) {
+    h += lh(s.label, sp) + 1;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(s.notes);
+    const dl = doc.splitTextToSize(order.notes.trim(), CW - 12);
+    h += dl.length * lh(s.notes, sp) + 4 + 2 + 3;
+  }
+
+  // Delivery method badge (optional)
+  if (order.delivery_method) {
+    h += lh(s.label, sp) + 1;
+    h += lh(s.body, sp) + 6;
+  }
+
+  // Divider before menu
+  h += 1.5 + 4;
+
   // MENU heading
   h += lh(s.sect, sp) + 2;
 
@@ -325,42 +409,6 @@ function measureLayout(doc, order, s, sp) {
     firstNonBlank = false;
   }
   h += 3;
-
-  // Kitchen notes (optional)
-  if (order.kitchen_notes?.trim()) {
-    h += 1.5 + 2;                      // rule + gap
-    h += lh(s.label, sp) + 1;          // label
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(s.notes);
-    const kl = doc.splitTextToSize(order.kitchen_notes.trim(), CW - 12);
-    h += kl.length * lh(s.notes, sp) + 4 + 2 + 3; // content + box padding + gap
-  }
-
-  // Delivery section: rule + gap
-  h += 1.5 + 3;
-  // Address / contact labels + values
-  h += lh(s.label, sp) + 1;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(s.body);
-  const al = doc.splitTextToSize(order.delivery_address || "—", CW / 2 - 6);
-  const cl = [order.on_site_contact || "—"];
-  if (order.on_site_phone) cl.push(order.on_site_phone);
-  h += Math.max(al.length, cl.length) * lh(s.body, sp) + 2;
-
-  // Delivery method badge (optional)
-  if (order.delivery_method) {
-    h += lh(s.label, sp) + 1;
-    h += lh(s.body, sp) + 6;   // badge text + box padding + gap
-  }
-
-  // Driver notes (optional)
-  if (order.notes?.trim()) {
-    h += lh(s.label, sp) + 1;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(s.notes);
-    const dl = doc.splitTextToSize(order.notes.trim(), CW);
-    h += dl.length * lh(s.notes, sp) + 2;
-  }
 
   // Footer: rule + gap + text
   h += 1.5 + 2;
@@ -469,44 +517,7 @@ function buildPDF(order) {
 
   rule(0.7); y += 4;
 
-  // 7. Menu heading
-  setFont("bold", S.sect);
-  doc.text("MENU", CX, y, { align: "center", baseline: "top" });
-  y += lh(S.sect, SP) + 2;
-
-  // 8. Menu items (rich formatting: sections, sub-items, prep notes, quantity bolding)
-  let firstNonBlank = true;
-  for (const item of menuItems) {
-    const parsed = parseMenuLine(item);
-    if (parsed.type === "blank") {
-      if (!firstNonBlank) y += processMenuLine(doc, parsed, y, S, SP, "render", false);
-      continue;
-    }
-    y += processMenuLine(doc, parsed, y, S, SP, "render", firstNonBlank);
-    firstNonBlank = false;
-  }
-  y += 3;
-
-  // 9. Kitchen notes (optional — highlighted box)
-  if (order.kitchen_notes?.trim()) {
-    rule(0.3); y += 2;
-
-    setFont("bold", S.label, GRAY);
-    doc.text("ADDITIONAL NOTES FOR KITCHEN", MARGIN, y, { baseline: "top" });
-    y += lh(S.label, SP) + 1;
-
-    setFont("normal", S.notes);
-    const kLines = doc.splitTextToSize(order.kitchen_notes.trim(), CW - 12);
-    const boxH   = kLines.length * lh(S.notes, SP) + 4;
-    doc.setFillColor(...NOTE_BG);
-    doc.roundedRect(MARGIN, y, CW, boxH + 2, 1.5, 1.5, "F");
-    doc.text(kLines, MARGIN + 5, y + 2, { baseline: "top" });
-    y += boxH + 2 + 3;
-  }
-
-  // 10. Delivery section
-  rule(0.3); y += 3;
-
+  // 7. Delivery address | Point of contact (moved up)
   setFont("normal", S.label, GRAY);
   doc.text("DELIVERY ADDRESS",  MARGIN,          y, { baseline: "top" });
   doc.text("POINT OF CONTACT",  PAGE_W / 2 + 4,  y, { baseline: "top" });
@@ -518,9 +529,41 @@ function buildPDF(order) {
   if (order.on_site_phone) ctLines.push(order.on_site_phone);
   doc.text(addrLines, MARGIN,         y, { baseline: "top" });
   doc.text(ctLines,   PAGE_W / 2 + 4, y, { baseline: "top" });
-  y += Math.max(addrLines.length, ctLines.length) * lh(S.body, SP) + 2;
+  y += Math.max(addrLines.length, ctLines.length) * lh(S.body, SP) + 3;
 
-  // 11. Delivery method badge (optional)
+  // 8. Kitchen notes (moved up — yellow highlight)
+  if (order.kitchen_notes?.trim()) {
+    setFont("bold", S.label, GRAY);
+    doc.text("ADDITIONAL NOTES FOR KITCHEN", MARGIN, y, { baseline: "top" });
+    y += lh(S.label, SP) + 1;
+
+    setFont("normal", S.notes);
+    const kLines = doc.splitTextToSize(order.kitchen_notes.trim(), CW - 12);
+    const boxH   = kLines.length * lh(S.notes, SP) + 4;
+    doc.setFillColor(...NOTE_BG);
+    doc.roundedRect(MARGIN, y, CW, boxH + 2, 1.5, 1.5, "F");
+    doc.setTextColor(...BLACK);
+    doc.text(kLines, MARGIN + 5, y + 2, { baseline: "top" });
+    y += boxH + 2 + 3;
+  }
+
+  // 9. Driver notes (moved up — yellow highlight)
+  if (order.notes?.trim()) {
+    setFont("bold", S.label, GRAY);
+    doc.text("SPECIAL INSTRUCTIONS FOR DRIVER", MARGIN, y, { baseline: "top" });
+    y += lh(S.label, SP) + 1;
+
+    setFont("normal", S.notes);
+    const dLines = doc.splitTextToSize(order.notes.trim(), CW - 12);
+    const boxH   = dLines.length * lh(S.notes, SP) + 4;
+    doc.setFillColor(...NOTE_BG);
+    doc.roundedRect(MARGIN, y, CW, boxH + 2, 1.5, 1.5, "F");
+    doc.setTextColor(...BLACK);
+    doc.text(dLines, MARGIN + 5, y + 2, { baseline: "top" });
+    y += boxH + 2 + 3;
+  }
+
+  // 10. Delivery method badge (moved up)
   if (order.delivery_method) {
     setFont("normal", S.label, GRAY);
     doc.text("DELIVERY METHOD", MARGIN, y, { baseline: "top" });
@@ -539,19 +582,28 @@ function buildPDF(order) {
     y += badgeH + 4;
   }
 
-  // 12. Driver notes (optional)
-  if (order.notes?.trim()) {
-    setFont("normal", S.label, GRAY);
-    doc.text("SPECIAL INSTRUCTIONS FOR DRIVER", MARGIN, y, { baseline: "top" });
-    y += lh(S.label, SP) + 1;
+  // 11. Divider before menu
+  rule(0.3); y += 4;
 
-    setFont("normal", S.notes);
-    const dLines = doc.splitTextToSize(order.notes.trim(), CW);
-    doc.text(dLines, MARGIN, y, { baseline: "top" });
-    y += dLines.length * lh(S.notes, SP) + 2;
+  // 12. Menu heading
+  setFont("bold", S.sect);
+  doc.text("MENU", CX, y, { align: "center", baseline: "top" });
+  y += lh(S.sect, SP) + 2;
+
+  // 13. Menu items (rich formatting: sections, sub-items, prep notes, quantity bolding)
+  let firstNonBlank = true;
+  for (const item of menuItems) {
+    const parsed = parseMenuLine(item);
+    if (parsed.type === "blank") {
+      if (!firstNonBlank) y += processMenuLine(doc, parsed, y, S, SP, "render", false);
+      continue;
+    }
+    y += processMenuLine(doc, parsed, y, S, SP, "render", firstNonBlank);
+    firstNonBlank = false;
   }
+  y += 3;
 
-  // 13. Footer
+  // 14. Footer
   rule(0.3); y += 2;
   const today = new Date().toLocaleDateString("en-US", {
     year: "numeric", month: "long", day: "numeric",
