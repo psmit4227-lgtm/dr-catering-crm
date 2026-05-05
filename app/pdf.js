@@ -129,8 +129,11 @@ function getMenuItems(order) {
   // Group user items by food category and add blank-line separators.
   const grouped = groupMenuItems(filtered);
 
+  // Dressings always appears as a default — specific (e.g. "Dressing - Small
+  // Caesar AND Large House") when a salad is detected, otherwise the generic
+  // "Dressings" line so the kitchen still has a slot to fill in.
   const tail = [];
-  if (dressingLine) tail.push(`• ${dressingLine}`);
+  tail.push(`• ${dressingLine || "Dressings"}`);
   tail.push("• Beverages", "• Paper boxes");
 
   const result = [...grouped];
@@ -421,6 +424,7 @@ function formatGuestBreakdown(order) {
 // Sets jsPDF font state as a side-effect (safe before rendering).
 function measureLayout(doc, order, s, sp) {
   const menuItems = getMenuItems(order);
+  const showOrderBox = order.delivery_method !== "Metrobi";
   let h = 0;
 
   // Title
@@ -436,7 +440,9 @@ function measureLayout(doc, order, s, sp) {
   // Reserve enough vertical space for the top-right delivery-order box —
   // box height is fixed regardless of font reduction, so the header section
   // must consume at least ORDER_BOX_H + a small gap before continuing.
-  h = Math.max(h, ORDER_BOX_H + 2);
+  // Skipped for Metrobi orders, where the box is hidden and the space is
+  // reclaimed by the rest of the layout.
+  if (showOrderBox) h = Math.max(h, ORDER_BOX_H + 2);
   // Rule 2 + gap
   h += 1.5 + 3;
   // Date/time labels + values
@@ -557,23 +563,28 @@ function buildPDF(order) {
 
   // 0. Top-right "DELIVERY ORDER #" handwriting box (drawn first so the
   //    surrounding header text is centered into the LEFT zone beside it).
-  doc.setDrawColor(...ESPRESSO);
-  doc.setLineWidth(0.7);
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(ORDER_BOX_X, ORDER_BOX_Y, ORDER_BOX_W, ORDER_BOX_H, 3, 3, "FD");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(Math.max(7, S.label + 2));
-  doc.setTextColor(...GOLD_DK);
-  doc.text(
-    "DELIVERY ORDER #",
-    ORDER_BOX_X + ORDER_BOX_W / 2,
-    ORDER_BOX_Y + 4,
-    { align: "center", baseline: "top" }
-  );
+  //    Hidden for Metrobi orders — Metrobi handles their own routing, so the
+  //    box has no purpose and the space is reclaimed by full-width header text.
+  const showOrderBox = order.delivery_method !== "Metrobi";
+  if (showOrderBox) {
+    doc.setDrawColor(...ESPRESSO);
+    doc.setLineWidth(0.7);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(ORDER_BOX_X, ORDER_BOX_Y, ORDER_BOX_W, ORDER_BOX_H, 3, 3, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(Math.max(7, S.label + 2));
+    doc.setTextColor(...GOLD_DK);
+    doc.text(
+      "DELIVERY ORDER #",
+      ORDER_BOX_X + ORDER_BOX_W / 2,
+      ORDER_BOX_Y + 4,
+      { align: "center", baseline: "top" }
+    );
+  }
 
-  // Header text now centers in the LEFT zone (margin → box left edge) so it
-  // sits visually balanced beside the delivery-order box.
-  const leftCX = (MARGIN + ORDER_BOX_X) / 2;
+  // Header text centers in the LEFT zone (margin → box left edge) when the
+  // box is shown, or across the full page when hidden.
+  const leftCX = showOrderBox ? (MARGIN + ORDER_BOX_X) / 2 : CX;
 
   // 1. Title
   setFont("bold", S.title);
@@ -585,9 +596,15 @@ function buildPDF(order) {
   doc.text(order.order_number || "DRC-0000", leftCX, y, { align: "center", baseline: "top" });
   y += lh(S.label, SP) + 3;
 
-  // First rule sits inside the box's vertical span — shorten it to stop
-  // before the box so the line doesn't cross the corner.
-  rule(0.4, MARGIN, ORDER_BOX_X - 2); y += 3;
+  // First rule sits inside the box's vertical span when the box is shown —
+  // shorten it to stop before the box so the line doesn't cross the corner.
+  // Full-width when the box is hidden (Metrobi).
+  if (showOrderBox) {
+    rule(0.4, MARGIN, ORDER_BOX_X - 2);
+  } else {
+    rule(0.4);
+  }
+  y += 3;
 
   // 3. Client name
   setFont("bold", S.client);
@@ -600,8 +617,9 @@ function buildPDF(order) {
   y += lh(S.label, SP) + 3;
 
   // Ensure the next rule + date row start below the box bottom, regardless
-  // of how much font reduction has been applied.
-  y = Math.max(y, ORDER_BOX_Y + ORDER_BOX_H + 2);
+  // of how much font reduction has been applied. Skipped when the box is
+  // hidden so other content can reclaim the space.
+  if (showOrderBox) y = Math.max(y, ORDER_BOX_Y + ORDER_BOX_H + 2);
 
   rule(); y += 3;
 
