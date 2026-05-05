@@ -14,6 +14,7 @@ const TABS = [
   { label: 'New Order',      href: '/' },
   { label: 'Orders History', href: '/orders' },
   { label: 'Dashboard',      href: '/dashboard' },
+  { label: 'Logistics',      href: '/logistics' },
 ];
 
 export default function Navigation() {
