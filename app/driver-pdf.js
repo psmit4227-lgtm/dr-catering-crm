@@ -81,11 +81,7 @@ function measureDriverSheet(doc, driver, planDate, s, sp) {
     h += 4; // gap between stops
   }
 
-  // Return row
-  h += 1.5 + 3;
-  h += lh(s.label, sp) + 1;
-  h += lh(s.stopHeader, sp) + 4;
-  // Footer
+  // Footer only — no return-to-kitchen row.
   h += 1.5 + 2 + lh(s.footer, sp);
   return h;
 }
@@ -223,15 +219,6 @@ function renderDriverSheet(doc, driver, planDate, totalDrivers, mockMode) {
 
     y += 4;
   });
-
-  // Return row
-  rule(0.4); y += 3;
-  setFont("bold", S.label, GOLD_DK);
-  doc.text("RETURN TO KITCHEN", MARGIN, y, { baseline: "top" });
-  y += lh(S.label, SP) + 1;
-  setFont("bold", S.stopHeader, ESPRESSO);
-  doc.text(fmtTime12(driver.returnKitchen), MARGIN, y, { baseline: "top" });
-  y += lh(S.stopHeader, SP) + 4;
 
   // Footer
   y = PAGE_H - MARGIN - lh(S.footer, SP) - 3;

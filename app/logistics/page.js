@@ -65,6 +65,7 @@ export default function LogisticsPage() {
   const [ordersCount, setOrdersCount]             = useState(null);
   const [modalOrdersCount, setModalOrdersCount]   = useState(null);
   const [ordersCountAtPlan, setOrdersCountAtPlan] = useState(null);
+  const [brokenOrders, setBrokenOrders]           = useState(null);
 
   // Track which date last fired a status fetch so the page-level date picker
   // can re-fetch when the user changes it.
@@ -129,6 +130,7 @@ export default function LogisticsPage() {
   async function planDay(tollsOverride, dateOverride) {
     setPlanning(true);
     setError('');
+    setBrokenOrders(null);
     setExpanded({});
     const targetDate = dateOverride || planDate;
     try {
@@ -142,13 +144,15 @@ export default function LogisticsPage() {
         }),
       });
       const j = await r.json();
-      if (j.error) {
+      if (j.error === 'broken_orders' && Array.isArray(j.brokenOrders)) {
+        setBrokenOrders(j.brokenOrders);
+        setPlan(null);
+      } else if (j.error) {
         setError(j.error);
         setPlan(null);
       } else {
         setPlan(j);
         setOrdersCountAtPlan(j.ordersCountAtPlan ?? null);
-        // Refresh the live order count so the warning banner is in sync.
         const status = await fetchStatus(targetDate);
         if (status) setOrdersCount(status.ordersCount);
         fetchAverages();
@@ -193,6 +197,7 @@ export default function LogisticsPage() {
     setPlanDate(newDate);
     setPlan(null);
     setOrdersCountAtPlan(null);
+    setBrokenOrders(null);
     const status = await fetchStatus(newDate);
     if (!status) return;
     setOrdersCount(status.ordersCount);
@@ -252,13 +257,17 @@ export default function LogisticsPage() {
                 </div>
               )}
 
-              {newOrdersCount > 0 && (
+              {newOrdersCount > 0 && !brokenOrders && (
                 <NewOrdersWarning
                   count={newOrdersCount}
                   date={planDate}
                   onReplan={() => planDay()}
                   busy={planning}
                 />
+              )}
+
+              {brokenOrders && brokenOrders.length > 0 && (
+                <BrokenOrdersBanner brokenOrders={brokenOrders} />
               )}
 
               {/* Section 1 — Date Picker + Plan button */}
@@ -315,13 +324,13 @@ export default function LogisticsPage() {
                 )}
               </Section>
 
-              {plan && plan.totalStops === 0 && (
+              {plan && plan.totalStops === 0 && !brokenOrders && (
                 <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e8dfc8', padding: 28, textAlign: 'center', color: TEXT_SEC, fontSize: 14, marginTop: 12 }}>
                   {plan.message || 'No DR Catering Driver deliveries for this date.'}
                 </div>
               )}
 
-              {plan && plan.totalStops > 0 && (
+              {plan && plan.totalStops > 0 && !brokenOrders && (
                 <>
                   {/* Section 2 — Summary Cards */}
                   <div className="summary-grid" style={{
@@ -639,6 +648,54 @@ function OrderCountBanner({ date, count }) {
   );
 }
 
+function BrokenOrdersBanner({ brokenOrders }) {
+  return (
+    <div style={{
+      background: '#fdecea',
+      border: '2px solid #c0392b',
+      borderRadius: 12,
+      padding: '16px 18px',
+      marginBottom: 24,
+      fontFamily: FONT,
+      color: '#5a1313',
+    }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#8b1e1e', marginBottom: 10 }}>
+        🚫 Cannot plan day — fix these orders first:
+      </div>
+      <ul style={{ margin: '0 0 14px', paddingLeft: 22, fontSize: 13.5, lineHeight: 1.55 }}>
+        {brokenOrders.map((bo, i) => (
+          <li key={i} style={{ marginBottom: 4 }}>
+            <span style={{ fontWeight: 700 }}>{bo.orderNumber}</span>
+            {bo.clientName && bo.clientName !== '—' && (
+              <span style={{ color: '#7a3a3a' }}> ({bo.clientName})</span>
+            )}
+            {' — '}
+            {bo.reasons.join('; ')}
+          </li>
+        ))}
+      </ul>
+      <a
+        href="/orders"
+        style={{
+          display: 'inline-block',
+          background: ESPRESSO,
+          color: GOLD,
+          border: 'none',
+          borderRadius: 10,
+          padding: '8px 18px',
+          fontSize: 13,
+          fontWeight: 700,
+          fontFamily: FONT,
+          textDecoration: 'none',
+          letterSpacing: '0.04em',
+        }}
+      >
+        Open Order History
+      </a>
+    </div>
+  );
+}
+
 function NewOrdersWarning({ count, date, onReplan, busy }) {
   return (
     <div className="warn-banner" style={{
@@ -801,6 +858,11 @@ function DriverCard({ driver, expanded, onToggleStop, driverIdx }) {
                 <div style={{ fontSize: 12, color: TEXT_SEC, marginTop: 2 }}>
                   Arrive {fmtTime12(stop.arriveAt)} · Setup 15 min · Leave {fmtTime12(stop.leaveAt)}
                 </div>
+                {stop.driverDepartFromOrder && (
+                  <div style={{ fontSize: 11, color: TEXT_SEC, marginTop: 2, fontStyle: 'italic' }}>
+                    Driver depart: {fmtTime12(stop.driverDepartFromOrder)} (from order)
+                  </div>
+                )}
               </div>
               <div style={{ fontSize: 11, color: GOLD, fontWeight: 700, paddingTop: 3 }}>
                 {isOpen ? '▾' : '▸'}
@@ -845,10 +907,6 @@ function DriverCard({ driver, expanded, onToggleStop, driverIdx }) {
           </div>
         );
       })}
-
-      <div style={{ marginTop: 12 }}>
-        <ScheduleRow icon="🏠" label="Return to Kitchen" time={driver.returnKitchen} bold />
-      </div>
     </div>
   );
 }

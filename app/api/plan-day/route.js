@@ -5,18 +5,26 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// Locked kitchen address — used as the depart point for distance calc when
+// reporting per-driver miles to/from the first stop. The actual depart TIME
+// comes from the first order's time_out, not from this address.
+const KITCHEN_ADDRESS_FALLBACK = '2321 US-22, Union, NJ 07083';
+
 const SETUP_MIN          = 15;   // minutes setup at every stop
-const ARRIVE_BUFFER_MIN  = 5;    // minutes before "time there"
+const ARRIVE_EARLY_MIN   = 10;   // aim to arrive this many minutes before time_there
 const MAX_STOPS_PER_DRV  = 3;    // hard limit
-const MOCK_STOP_MIN      = 20;   // mock drive between stops
-const MOCK_KITCHEN_MIN   = 25;   // mock drive from/to kitchen
+const MOCK_STOP_MIN      = 20;   // mock drive between any two points
 const MOCK_STOP_MILES    = 12;
-const MOCK_KITCHEN_MILES = 15;
 const METERS_PER_MILE    = 1609.344;
 
 function isMockMode() {
   const k = process.env.GOOGLE_MAPS_API_KEY;
   return !k || !k.trim();
+}
+
+function kitchenAddress() {
+  const addr = process.env.DR_CATERING_KITCHEN_ADDRESS;
+  return (addr && addr.trim()) ? addr : KITCHEN_ADDRESS_FALLBACK;
 }
 
 function timeToMinutes(t) {
@@ -34,18 +42,42 @@ function minutesToTime(mins) {
   return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
 }
 
-// Build a [N+1]x[N+1] matrix of {minutes, miles}.
-// Index 0 = kitchen, indexes 1..N = stops.
+// Validate every DR Driver order for the date. Returns { valid, brokenOrders }.
+// Each broken order is { orderNumber, clientName, reasons: [string] }.
+function validateOrders(orders) {
+  const brokenOrders = [];
+  for (const o of orders) {
+    const reasons = [];
+    if (!o.time_out)            reasons.push('Missing Time Out');
+    if (!o.delivery_time)       reasons.push('Missing Time There');
+    if (!(o.delivery_address || '').trim()) reasons.push('Missing delivery address');
+    const tOut  = timeToMinutes(o.time_out);
+    const tThere = timeToMinutes(o.delivery_time);
+    if (tOut != null && tThere != null && tThere <= tOut) {
+      reasons.push('Time There is before Time Out');
+    }
+    if (reasons.length) {
+      brokenOrders.push({
+        orderNumber: o.order_number || o.id,
+        clientName:  o.client_name || '—',
+        reasons,
+      });
+    }
+  }
+  return { valid: brokenOrders.length === 0, brokenOrders };
+}
+
+// Build an N×N matrix of {minutes, miles} between stops (no kitchen — depart
+// times come from orders). Used by clustering to check whether a new stop can
+// fit on an existing driver after the previous stop.
 async function buildMatrixMock(stops) {
-  const n = stops.length + 1;
+  const n = stops.length;
   const matrix = Array.from({ length: n }, () => Array(n).fill(null));
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
-      if (i === j) { matrix[i][j] = { minutes: 0, miles: 0 }; continue; }
-      const involvesKitchen = (i === 0 || j === 0);
-      matrix[i][j] = involvesKitchen
-        ? { minutes: MOCK_KITCHEN_MIN, miles: MOCK_KITCHEN_MILES }
-        : { minutes: MOCK_STOP_MIN,    miles: MOCK_STOP_MILES };
+      matrix[i][j] = (i === j)
+        ? { minutes: 0, miles: 0 }
+        : { minutes: MOCK_STOP_MIN, miles: MOCK_STOP_MILES };
     }
   }
   return matrix;
@@ -53,12 +85,9 @@ async function buildMatrixMock(stops) {
 
 async function buildMatrixGoogle(stops, useTolls) {
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-  const kitchen = process.env.DR_CATERING_KITCHEN_ADDRESS || '';
-  const points = [kitchen, ...stops.map(s => s.delivery_address || '')];
+  const points = stops.map(s => s.delivery_address || '');
   const n = points.length;
 
-  // Distance Matrix accepts up to 25 origins/destinations per request, so a
-  // single round-trip is fine for catering-day volumes (max ~10 stops in practice).
   const origins = points.map(p => encodeURIComponent(p)).join('|');
   const destinations = origins;
   const avoid = useTolls ? '' : '&avoid=tolls';
@@ -75,11 +104,7 @@ async function buildMatrixGoogle(stops, useTolls) {
       if (i === j) { matrix[i][j] = { minutes: 0, miles: 0 }; continue; }
       const cell = row?.elements?.[j];
       if (!cell || cell.status !== 'OK') {
-        // Fall back to mock for failed cells so planning still completes
-        const involvesKitchen = (i === 0 || j === 0);
-        matrix[i][j] = involvesKitchen
-          ? { minutes: MOCK_KITCHEN_MIN, miles: MOCK_KITCHEN_MILES }
-          : { minutes: MOCK_STOP_MIN,    miles: MOCK_STOP_MILES };
+        matrix[i][j] = { minutes: MOCK_STOP_MIN, miles: MOCK_STOP_MILES };
         continue;
       }
       matrix[i][j] = {
@@ -91,45 +116,65 @@ async function buildMatrixGoogle(stops, useTolls) {
   return matrix;
 }
 
-// Greedy assignment: sort by deadline, try to slot each stop onto an existing
-// driver if it still arrives within buffer, else open a new driver.
+// Also fetch kitchen → first-stop drive distances in a single call so each
+// driver can show miles for the kitchen-leg in their summary. Failures fall
+// back to mock — the times stay correct (they come from the order).
+async function kitchenLegMiles(stops, useTolls) {
+  if (isMockMode()) return stops.map(() => MOCK_STOP_MILES);
+  try {
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    const origin = encodeURIComponent(kitchenAddress());
+    const destinations = stops.map(s => encodeURIComponent(s.delivery_address || '')).join('|');
+    const avoid = useTolls ? '' : '&avoid=tolls';
+    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${origin}&destinations=${destinations}&units=imperial${avoid}&key=${apiKey}`;
+    const resp = await fetch(url);
+    const json = await resp.json();
+    if (json.status !== 'OK') throw new Error(json.status);
+    return stops.map((_, j) => {
+      const cell = json.rows?.[0]?.elements?.[j];
+      if (!cell || cell.status !== 'OK') return MOCK_STOP_MILES;
+      return +(cell.distance.value / METERS_PER_MILE).toFixed(2);
+    });
+  } catch {
+    return stops.map(() => MOCK_STOP_MILES);
+  }
+}
+
+// New clustering: trust the order-supplied times. Sort by time_out (driver
+// leaves earliest first), greedily fit each new stop onto an existing driver
+// if there's enough drive time between previous stop's leave and new stop's
+// time_there (with a 10-min early-arrival target). Else open a new driver.
 function clusterStops(stops, matrix) {
-  // Each driver: { stopIdxs: [originalIndex], lastIdx: matrixIndex (0=kitchen at start) }
   const drivers = [];
 
-  // Sort stops by their "time there" deadline (earliest first).
-  const sortedStopOrder = [...stops.map((s, i) => i)].sort((a, b) => {
-    const ta = timeToMinutes(stops[a].delivery_time) ?? 24 * 60;
-    const tb = timeToMinutes(stops[b].delivery_time) ?? 24 * 60;
+  const sortedOrder = [...stops.map((_, i) => i)].sort((a, b) => {
+    const ta = timeToMinutes(stops[a].time_out) ?? 24 * 60;
+    const tb = timeToMinutes(stops[b].time_out) ?? 24 * 60;
     return ta - tb;
   });
 
-  for (const origIdx of sortedStopOrder) {
-    const stop = stops[origIdx];
-    const stopMatrixIdx = origIdx + 1; // 0 is kitchen
-    const deadline = timeToMinutes(stop.delivery_time);
+  for (const idx of sortedOrder) {
+    const stop = stops[idx];
+    const tOut   = timeToMinutes(stop.time_out);
+    const tThere = timeToMinutes(stop.delivery_time);
     let placed = false;
 
     for (const drv of drivers) {
       if (drv.stops.length >= MAX_STOPS_PER_DRV) continue;
-      const lastEntry = drv.stops[drv.stops.length - 1];
-      const driveMin  = matrix[lastEntry.matrixIdx][stopMatrixIdx].minutes;
-      const arrival   = lastEntry.leaveAt + driveMin;
-      const required  = (deadline ?? Infinity) - ARRIVE_BUFFER_MIN;
-
-      if (deadline == null || arrival <= required) {
-        // Effective arrival respects the deadline if we're early.
-        const effectiveArrival = deadline != null
-          ? Math.min(arrival, deadline - ARRIVE_BUFFER_MIN)
-          : arrival;
-        const realArrival = Math.max(arrival, effectiveArrival); // we don't go backward
+      const last = drv.stops[drv.stops.length - 1];
+      const driveMin = matrix[last.idx][idx].minutes;
+      // Driver leaves previous stop after setup, drives, must arrive before tThere.
+      const arrival = last.leaveAt + driveMin;
+      if (arrival <= tThere) {
+        // Fit. Prefer arriving 10 min early when there's time.
+        const planned = Math.min(arrival, tThere - ARRIVE_EARLY_MIN);
+        const realArrival = Math.max(planned, arrival); // never travel back in time
         drv.stops.push({
-          origIdx,
-          matrixIdx: stopMatrixIdx,
+          idx,
           arriveAt:  realArrival,
           leaveAt:   realArrival + SETUP_MIN,
           driveMin,
-          driveMiles: matrix[lastEntry.matrixIdx][stopMatrixIdx].miles,
+          driveMiles: matrix[last.idx][idx].miles,
         });
         placed = true;
         break;
@@ -137,56 +182,45 @@ function clusterStops(stops, matrix) {
     }
 
     if (!placed) {
-      // New driver: depart kitchen so we arrive ARRIVE_BUFFER_MIN before deadline.
-      const driveFromKitchen = matrix[0][stopMatrixIdx].minutes;
-      const milesFromKitchen = matrix[0][stopMatrixIdx].miles;
-      const arrival = deadline != null
-        ? deadline - ARRIVE_BUFFER_MIN
-        : 9 * 60 + driveFromKitchen; // fallback: depart at 9am
-      const departKitchen = arrival - driveFromKitchen;
+      // New driver. Depart kitchen at the order's time_out (trust the order).
+      // Plan arrival 10 min before tThere.
+      const arrival = tThere - ARRIVE_EARLY_MIN;
       drivers.push({
-        departKitchen,
+        departKitchen: tOut,
         stops: [{
-          origIdx,
-          matrixIdx: stopMatrixIdx,
+          idx,
           arriveAt:  arrival,
           leaveAt:   arrival + SETUP_MIN,
-          driveMin:  driveFromKitchen,
-          driveMiles: milesFromKitchen,
+          driveMin:  Math.max(0, arrival - tOut), // implied kitchen → first-stop drive time
+          driveMiles: 0, // filled in later from kitchenLegMiles
           fromKitchen: true,
         }],
       });
     }
   }
-
-  // Compute return-to-kitchen for each driver.
-  for (const drv of drivers) {
-    const last = drv.stops[drv.stops.length - 1];
-    const back = matrix[last.matrixIdx][0];
-    drv.returnAt    = last.leaveAt + back.minutes;
-    drv.returnMin   = back.minutes;
-    drv.returnMiles = back.miles;
-  }
-
   return drivers;
 }
 
-function summarize(drivers, stops) {
+function summarize(drivers, stops, kitchenMilesByStopIdx) {
   let totalMiles = 0;
   let totalDriveMin = 0;
   const out = drivers.map((drv, di) => {
-    const driverMiles = drv.stops.reduce((s, st) => s + (st.driveMiles || 0), 0) + (drv.returnMiles || 0);
-    const driverMin   = drv.stops.reduce((s, st) => s + (st.driveMin   || 0), 0) + (drv.returnMin   || 0);
+    // First stop's drive_miles comes from kitchen → that stop.
+    const first = drv.stops[0];
+    if (first?.fromKitchen) {
+      first.driveMiles = kitchenMilesByStopIdx[first.idx] ?? first.driveMiles ?? 0;
+    }
+    const driverMiles = drv.stops.reduce((s, st) => s + (st.driveMiles || 0), 0);
+    const driverMin   = drv.stops.reduce((s, st) => s + (st.driveMin   || 0), 0);
     totalMiles    += driverMiles;
     totalDriveMin += driverMin;
     return {
       driverNumber: di + 1,
       departKitchen: minutesToTime(drv.departKitchen),
-      returnKitchen: minutesToTime(drv.returnAt),
       totalMiles: +driverMiles.toFixed(1),
       totalDriveMinutes: driverMin,
       stops: drv.stops.map((st, si) => {
-        const o = stops[st.origIdx];
+        const o = stops[st.idx];
         return {
           stopNumber: si + 1,
           orderId: o.id,
@@ -196,12 +230,14 @@ function summarize(drivers, stops) {
           onSiteContact: o.on_site_contact,
           onSitePhone: o.on_site_phone,
           deliveryDeadline: o.delivery_time,
+          driverDepartFromOrder: o.time_out, // shown as "Driver depart: X (from order)"
           driverNotes: o.notes,
           guestCount: o.guest_count,
           arriveAt: minutesToTime(st.arriveAt),
           leaveAt:  minutesToTime(st.leaveAt),
           driveMinutesFromPrev: st.driveMin,
           driveMilesFromPrev:   +(st.driveMiles || 0).toFixed(1),
+          fromKitchen: !!st.fromKitchen,
         };
       }),
     };
@@ -242,13 +278,10 @@ export async function POST(request) {
 
     if (error) return Response.json({ error: error.message }, { status: 500 });
 
-    const stops = (orders || []).filter(o => (o.delivery_address || '').trim().length > 0);
-
-    // Snapshot of total orders at planning time (used by the warning banner
-    // when new orders show up later).
+    const plannable = orders || [];
     const ordersCountAtPlan = await countOrdersForDate(date);
 
-    if (stops.length === 0) {
+    if (plannable.length === 0) {
       return Response.json({
         drivers: [],
         totalStops: 0,
@@ -261,16 +294,32 @@ export async function POST(request) {
       });
     }
 
+    // BLOCKING validation — refuse to plan if any order is broken. This is the
+    // safety net behind the New-Order-form validation: even if a bad order
+    // somehow lands in the DB, the planner will not silently route around it.
+    const { valid, brokenOrders } = validateOrders(plannable);
+    if (!valid) {
+      return Response.json({
+        error: 'broken_orders',
+        brokenOrders,
+        mockMode: isMockMode(),
+        ordersCountAtPlan,
+      }, { status: 422 });
+    }
+
     const mock = isMockMode();
     const matrix = mock
-      ? await buildMatrixMock(stops)
-      : await buildMatrixGoogle(stops, useTolls).catch(async (e) => {
+      ? await buildMatrixMock(plannable)
+      : await buildMatrixGoogle(plannable, useTolls).catch(async (e) => {
           console.error('Distance Matrix failed, falling back to mock:', e.message);
-          return buildMatrixMock(stops);
+          return buildMatrixMock(plannable);
         });
 
-    const drivers = clusterStops(stops, matrix);
-    const summary = summarize(drivers, stops);
+    const kitchenMiles = await kitchenLegMiles(plannable, useTolls);
+    const kitchenMilesByIdx = plannable.map((_, i) => kitchenMiles[i]);
+
+    const drivers = clusterStops(plannable, matrix);
+    const summary = summarize(drivers, plannable, kitchenMilesByIdx);
 
     // Persist the plan so the historical-averages widget and the new-orders
     // warning can read it later. orders_count_at_plan column may not exist on
@@ -287,8 +336,6 @@ export async function POST(request) {
     const withCount = { ...baseRow, orders_count_at_plan: ordersCountAtPlan };
     const { error: insErr } = await supabase.from('daily_plans').insert([withCount]);
     if (insErr) {
-      // Column missing or table missing — try without the new column so the
-      // historical widget at least keeps working.
       await supabase.from('daily_plans').insert([baseRow]).then(() => null, () => null);
     }
 
@@ -298,9 +345,6 @@ export async function POST(request) {
   }
 }
 
-// Look up the saved plan + current order count for a given date. Used by the
-// page on load (and after date changes) to decide whether to gate behind the
-// modal, show an existing plan, or surface the new-orders warning.
 async function getStatusForDate(date) {
   const ordersCount = await countOrdersForDate(date);
 
@@ -350,7 +394,6 @@ export async function GET(request) {
     return Response.json({ averages: { avgDriversPerDay: 0, highestDay: 0, byWeekday: {} } });
   }
 
-  // Average across distinct days (use latest plan per date).
   const latestByDate = new Map();
   for (const p of plans) latestByDate.set(p.plan_date, p);
   const distinct = Array.from(latestByDate.values());

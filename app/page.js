@@ -12,6 +12,17 @@ const supabase = createClient(
 
 const genOrderNum = () => 'DRC-' + String(Math.floor(Math.random() * 9000) + 1000);
 
+// Returns true when both fields are filled AND time_there is at or before
+// time_out — i.e. driver would arrive before leaving. Used by the form to
+// block submit and by Smart Fill to refuse to fill bad AI output.
+function timesInvalid(timeOut, timeThere) {
+  if (!timeOut || !timeThere) return false;
+  const [oh, om] = timeOut.split(':').map(Number);
+  const [th, tm] = timeThere.split(':').map(Number);
+  if (isNaN(oh) || isNaN(om) || isNaN(th) || isNaN(tm)) return false;
+  return (th * 60 + tm) <= (oh * 60 + om);
+}
+
 // Dietary/subset keywords — "with N [keyword]" means a sub-group, not addition
 const DIETARY_RE = /\b(vegetarian|vegan|gluten.?free|nut.?free|dairy.?free|lactose|kosher|halal|pescatarian|plant.?based|allerg|intoleran|celiac)\b/i;
 // Connector words that signal the numbers that follow are SUBSETS, not extra guests
@@ -379,8 +390,17 @@ export default function Home() {
       }
       if (p.deliveryAddress) ff('delivery_address', p.deliveryAddress);
       if (p.deliveryDate) ff('delivery_date', p.deliveryDate);
-      if (p.arrivalTime) ff('delivery_time', to24h(p.arrivalTime));
-      if (p.pickupTime) ff('time_out', to24h(p.pickupTime));
+      // Validate AI-provided times before filling. If the AI returned a
+      // Time There that is not after Time Out, refuse to fill EITHER field
+      // and surface a banner — sales rep must enter both manually.
+      const aiOut   = p.pickupTime  ? to24h(p.pickupTime)  : '';
+      const aiThere = p.arrivalTime ? to24h(p.arrivalTime) : '';
+      if (aiOut && aiThere && timesInvalid(aiOut, aiThere)) {
+        setSmartFillError('⚠️ AI detected invalid times. Please enter Time Out and Time There manually.');
+      } else {
+        if (aiThere) ff('delivery_time', aiThere);
+        if (aiOut)   ff('time_out',      aiOut);
+      }
       if (p.guestCount && p.guestCount !== '0' && p.guestCount !== 0) applyGuestCount(p.guestCountOriginal || String(p.guestCount));
       if (p.menuItems?.length) {
         setMenuItems([]);
@@ -637,6 +657,10 @@ export default function Home() {
     if (!form.order_details || form.order_details === '• ') { alert('Please enter the menu'); return; }
     if (form.event_type === 'Other' && !form.event_type_other) { alert('Please specify the event type'); return; }
     if (!form.delivery_method) { alert('Please select a delivery method'); return; }
+    if (timesInvalid(form.time_out, form.delivery_time)) {
+      alert("Time There must be after Time Out. Driver can't arrive before leaving.");
+      return;
+    }
     setSaving(true);
     const finalEventType = form.event_type === 'Other' ? `Other: ${form.event_type_other}` : form.event_type;
     const orderToSave = { ...form, event_type: finalEventType };
@@ -718,6 +742,12 @@ export default function Home() {
     </div>
   );
   const required = { color:'#c0392b', marginLeft:'3px' };
+
+  // Time There must be after Time Out — driver can't arrive before leaving.
+  const timeError = timesInvalid(form.time_out, form.delivery_time);
+  const timeInputStyle = (bad) => bad
+    ? { ...inputStyle, border: '2px solid #c0392b', background: '#fff5f3' }
+    : inputStyle;
 
   if (done) return (
     <>
@@ -949,19 +979,26 @@ export default function Home() {
           <textarea style={{...inputStyle, height:'80px', resize:'none'}} placeholder="Gate code, elevator only, call before arriving..." value={form.notes} onChange={e => ff('notes', e.target.value)}/>
         </div>
 
-        <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap:'16px', marginBottom:'18px'}}>
-          <div>
-            <label style={labelStyle}>Delivery date <span style={required}>*</span></label>
-            <input style={inputStyle} type="date" value={form.delivery_date} onChange={e => ff('delivery_date', e.target.value)}/>
+        <div style={{marginBottom:'18px'}}>
+          <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap:'16px'}}>
+            <div>
+              <label style={labelStyle}>Delivery date <span style={required}>*</span></label>
+              <input style={inputStyle} type="date" value={form.delivery_date} onChange={e => ff('delivery_date', e.target.value)}/>
+            </div>
+            <div>
+              <label style={labelStyle}>Time out</label>
+              <input style={timeInputStyle(timeError)} type="time" value={form.time_out} onChange={e => ff('time_out', e.target.value)}/>
+            </div>
+            <div>
+              <label style={labelStyle}>Time there</label>
+              <input style={timeInputStyle(timeError)} type="time" value={form.delivery_time} onChange={e => ff('delivery_time', e.target.value)}/>
+            </div>
           </div>
-          <div>
-            <label style={labelStyle}>Time out</label>
-            <input style={inputStyle} type="time" value={form.time_out} onChange={e => ff('time_out', e.target.value)}/>
-          </div>
-          <div>
-            <label style={labelStyle}>Time there</label>
-            <input style={inputStyle} type="time" value={form.delivery_time} onChange={e => ff('delivery_time', e.target.value)}/>
-          </div>
+          {timeError && (
+            <div style={{marginTop:'8px', padding:'8px 12px', background:'#fdecea', color:'#8b1e1e', border:'1px solid #c0392b', borderRadius:'8px', fontSize:'13px', fontFamily:font}}>
+              ⚠️ Time There must be after Time Out. Driver can't arrive before leaving.
+            </div>
+          )}
         </div>
 
         <div style={{marginBottom:'18px'}}>
@@ -1133,8 +1170,13 @@ export default function Home() {
 
         <div style={{fontSize:'11px', color:'#b5a58a', marginBottom:'16px', fontFamily:font}}><span style={required}>*</span> Required fields</div>
 
-        <button onClick={save} disabled={saving} style={{width:'100%', background: saving ? '#b5a58a':'#1e1008', color: saving ? '#fff' : '#c9a84c', borderRadius:'12px', padding:'16px', fontSize:'16px', fontWeight:'700', border:'none', cursor: saving ? 'not-allowed':'pointer', fontFamily:font, letterSpacing:'0.05em'}}>
-          {saving ? 'Sending...' : 'Send order to kitchen'}
+        <button
+          onClick={save}
+          disabled={saving || timeError}
+          title={timeError ? "Fix Time There — must be after Time Out" : undefined}
+          style={{width:'100%', background: (saving || timeError) ? '#b5a58a':'#1e1008', color: (saving || timeError) ? '#fff' : '#c9a84c', borderRadius:'12px', padding:'16px', fontSize:'16px', fontWeight:'700', border:'none', cursor: (saving || timeError) ? 'not-allowed':'pointer', fontFamily:font, letterSpacing:'0.05em'}}
+        >
+          {saving ? 'Sending...' : (timeError ? 'Fix times to send order' : 'Send order to kitchen')}
         </button>
 
       </div>
