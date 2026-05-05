@@ -9,12 +9,15 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-const FONT     = 'Georgia, serif';
-const BG       = '#f5f0e8';
-const ESPRESSO = '#1e1008';
-const GOLD     = '#c9a84c';
-const TEXT_SEC = '#8b6914';
-const SHADOW   = '0 4px 12px rgba(30,16,8,0.08)';
+const FONT      = 'inherit';
+const BG        = '#FFFFFF';
+const NAVY      = '#1B2845';
+const NAVY_SOFT = '#E8ECF4';
+const TEXT_SEC  = '#5C6478';
+const BORDER    = '#E5E7EB';
+const ESPRESSO  = NAVY;
+const GOLD      = NAVY;
+const SHADOW    = 'none';
 
 function fmtDate(d) {
   if (!d) return '—';
@@ -78,7 +81,7 @@ export default function OrdersPage() {
           {/* Header row */}
           <div className="orders-header" style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:12, marginBottom:28 }}>
             <div>
-              <div style={{ fontSize:22, fontWeight:700, color: ESPRESSO, fontFamily:FONT, letterSpacing:'0.04em' }}>Orders History</div>
+              <div style={{ fontSize:28, fontWeight:600, color: NAVY }}>Orders History</div>
               <div style={{ fontSize:13, color: TEXT_SEC, marginTop:4, fontFamily:FONT }}>
                 {filtered.length} order{filtered.length !== 1 ? 's' : ''}
               </div>
@@ -90,7 +93,7 @@ export default function OrdersPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{
-                padding:'10px 16px', border:'1px solid #c9a84c', borderRadius:12,
+                padding:'10px 16px', border:`1px solid ${BORDER}`, borderRadius:12,
                 fontSize:14, color: ESPRESSO, background:'#fff', outline:'none',
                 fontFamily:FONT, width:280, boxSizing:'border-box',
               }}
@@ -114,7 +117,7 @@ export default function OrdersPage() {
                   <div
                     key={order.id}
                     style={{
-                      background:'#fff', borderRadius:16, border:'1px solid #e8dfc8',
+                      background:'#fff', borderRadius:16, border:`1px solid ${BORDER}`,
                       overflow:'hidden', boxShadow: SHADOW,
                     }}
                   >
@@ -134,12 +137,12 @@ export default function OrdersPage() {
                         </div>
                       </div>
 
-                      {/* Event badge — gold pill */}
+                      {/* Event badge — navy soft pill */}
                       {label && (
                         <span style={{
-                          fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:20,
-                          background:'#faf5e8', color: TEXT_SEC, border:`1px solid ${GOLD}`,
-                          fontFamily:FONT, whiteSpace:'nowrap', flexShrink:0, letterSpacing:'0.04em',
+                          fontSize:12, fontWeight:500, padding:'3px 10px', borderRadius:20,
+                          background:NAVY_SOFT, color: NAVY, border:`1px solid ${BORDER}`,
+                          whiteSpace:'nowrap', flexShrink:0,
                         }}>
                           {label}
                         </span>
@@ -148,11 +151,11 @@ export default function OrdersPage() {
                       {/* Delivery method badge */}
                       {order.delivery_method && (
                         <span style={{
-                          fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:20,
-                          background: order.delivery_method === 'Metrobi' ? '#faf5e8' : ESPRESSO,
-                          color:      order.delivery_method === 'Metrobi' ? GOLD        : GOLD,
-                          border:     order.delivery_method === 'Metrobi' ? `1px solid ${GOLD}` : `1px solid ${ESPRESSO}`,
-                          fontFamily:FONT, whiteSpace:'nowrap', flexShrink:0, letterSpacing:'0.04em',
+                          fontSize:12, fontWeight:500, padding:'3px 10px', borderRadius:20,
+                          background: order.delivery_method === 'Metrobi' ? NAVY_SOFT : NAVY,
+                          color:      order.delivery_method === 'Metrobi' ? NAVY      : '#FFFFFF',
+                          border:     order.delivery_method === 'Metrobi' ? `1px solid ${BORDER}` : `1px solid ${NAVY}`,
+                          whiteSpace:'nowrap', flexShrink:0,
                         }}>
                           {order.delivery_method === 'Metrobi' ? '🚚 Metrobi' : '🏠 DR Catering'}
                         </span>
@@ -168,7 +171,7 @@ export default function OrdersPage() {
                           <div style={{ fontSize:10, fontWeight:700, color: GOLD, fontFamily:FONT, textTransform:'uppercase', letterSpacing:'0.06em' }}>Guests</div>
                           <div style={{ fontSize:13, fontWeight:600, color: ESPRESSO, fontFamily:FONT }}>{order.guest_count || '—'}</div>
                         </div>
-                        <div style={{ fontSize:13, color:'#c9a84c', fontFamily:FONT, flexShrink:0 }}>{isOpen ? '▲' : '▼'}</div>
+                        <div style={{ fontSize:13, color: NAVY, fontFamily:FONT, flexShrink:0 }}>{isOpen ? '▲' : '▼'}</div>
                       </div>
                     </div>
 
@@ -181,7 +184,7 @@ export default function OrdersPage() {
 
                     {/* Expanded details */}
                     {isOpen && (
-                      <div style={{ borderTop:`1px solid #e8dfc8`, padding:20, background:'#faf5e8' }}>
+                      <div style={{ borderTop:`1px solid ${BORDER}`, padding:20, background:NAVY_SOFT }}>
 
                         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(170px, 1fr))', gap:16, marginBottom:16 }}>
                           <DetailBlock label="Delivery Address" value={order.delivery_address} />
@@ -197,13 +200,12 @@ export default function OrdersPage() {
                           } />
                         </div>
 
-                        {/* Gold divider */}
-                        <div style={{ height:1, background: GOLD, opacity:0.3, marginBottom:16 }} />
+                        <div style={{ height:1, background: BORDER, marginBottom:16 }} />
 
                         {order.order_details && (
                           <div style={{ marginBottom:14 }}>
                             <div style={{ fontSize:10, fontWeight:700, color: GOLD, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:6, fontFamily:FONT }}>Menu</div>
-                            <div style={{ background:'#fff', borderRadius:10, border:`1px solid #e8dfc8`, padding:'12px 14px', fontFamily:FONT }}>
+                            <div style={{ background:'#fff', borderRadius:10, border:`1px solid ${BORDER}`, padding:'12px 14px', fontFamily:FONT }}>
                               {order.menu_package && order.menu_package !== 'Custom' && (
                                 <div style={{ fontSize:11, fontWeight:700, color: GOLD, marginBottom:6, fontFamily:FONT, letterSpacing:'0.04em' }}>
                                   Package: {order.menu_package}
@@ -242,7 +244,7 @@ function DetailBlock({ label, value, pre }) {
       <div style={{ fontSize:10, fontWeight:700, color: GOLD, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:4, fontFamily: FONT }}>
         {label}
       </div>
-      <div style={{ fontSize:13, color: '#1e1008', fontFamily: FONT, lineHeight:1.6, whiteSpace: pre ? 'pre-wrap' : 'normal' }}>
+      <div style={{ fontSize:13, color: NAVY, fontFamily: FONT, lineHeight:1.6, whiteSpace: pre ? 'pre-wrap' : 'normal' }}>
         {value || '—'}
       </div>
     </div>

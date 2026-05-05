@@ -68,19 +68,24 @@ function parseGuestCount(raw) {
   return { total: firstNum, display: String(firstNum), hint: '' };
 }
 
-const FONT = 'Georgia, serif';
-const cardStyle = { background:'#ffffff', borderRadius:'16px', border:'1px solid #e8dfc8', width:'100%', boxSizing:'border-box', boxShadow:'0 4px 12px rgba(30,16,8,0.08)' };
-const authInput = { width:'100%', padding:'11px 14px', border:'1px solid #c9a84c', borderRadius:'12px', fontSize:'15px', color:'#1e1008', boxSizing:'border-box', outline:'none', fontFamily:FONT, background:'#fff' };
-const authLabel = { display:'block', fontSize:'11px', fontWeight:'600', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'6px', fontFamily:FONT };
-const primaryBtn = (disabled) => ({ width:'100%', background: disabled ? '#b5a58a' : '#1e1008', color: disabled ? '#fff' : '#c9a84c', borderRadius:'12px', padding:'14px', fontSize:'15px', fontWeight:'700', border:'none', cursor: disabled ? 'not-allowed' : 'pointer', fontFamily:FONT, letterSpacing:'0.05em' });
+const FONT       = 'inherit';
+const NAVY       = '#1B2845';
+const NAVY_HOVER = '#2A3D63';
+const NAVY_SOFT  = '#E8ECF4';
+const TEXT_SEC   = '#5C6478';
+const BORDER     = '#E5E7EB';
+const cardStyle = { background:'#FFFFFF', borderRadius:'12px', border:`1px solid ${BORDER}`, width:'100%', boxSizing:'border-box' };
+const authInput = { width:'100%', padding:'11px 14px', border:`1px solid ${BORDER}`, borderRadius:'8px', fontSize:'15px', color:NAVY, boxSizing:'border-box', outline:'none', background:'#FFFFFF' };
+const authLabel = { display:'block', fontSize:'12px', fontWeight:'600', color:TEXT_SEC, textTransform:'uppercase', letterSpacing:'1.5px', marginBottom:'6px' };
+const primaryBtn = (disabled) => ({ width:'100%', background: disabled ? '#9CA3AF' : NAVY, color: '#FFFFFF', borderRadius:'8px', padding:'14px', fontSize:'15px', fontWeight:'600', border:'none', cursor: disabled ? 'not-allowed' : 'pointer' });
 
 function AuthShell({ children }) {
   return (
-    <main style={{minHeight:'100vh', background:'#f5f0e8', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px', fontFamily:FONT}}>
+    <main style={{minHeight:'100vh', background:'#FFFFFF', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px'}}>
       <div style={{...cardStyle, maxWidth:'400px', padding:'40px 36px'}}>
-        <div style={{textAlign:'center', marginBottom:'32px', paddingBottom:'24px', borderBottom:'1px solid #e8dfc8'}}>
-          <div style={{fontSize:'20px', fontWeight:'700', color:'#1e1008', fontFamily:FONT, letterSpacing:'4px', textTransform:'uppercase'}}>DR Catering</div>
-          <div style={{fontSize:'11px', color:'#8b6914', letterSpacing:'0.1em', marginTop:'6px', fontFamily:FONT, textTransform:'uppercase'}}>Catering Operating System</div>
+        <div style={{textAlign:'center', marginBottom:'32px', paddingBottom:'24px', borderBottom:`1px solid ${BORDER}`}}>
+          <div style={{fontSize:'20px', fontWeight:'600', color:NAVY, letterSpacing:'3px', textTransform:'uppercase'}}>DR Catering</div>
+          <div style={{fontSize:'12px', color:TEXT_SEC, letterSpacing:'1.5px', marginTop:'8px', textTransform:'uppercase'}}>Catering Operating System</div>
         </div>
         {children}
       </div>
@@ -640,8 +645,8 @@ export default function Home() {
   );
 
   const micBtn = (field) => ({
-    background: listening === field ? '#c0392b' : '#e8dfc8',
-    color: listening === field ? '#fff' : '#8b6914',
+    background: listening === field ? '#c0392b' : BORDER,
+    color: listening === field ? '#fff' : TEXT_SEC,
     border: 'none', borderRadius: '50%',
     width: '30px', height: '30px', cursor: 'pointer',
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -702,8 +707,8 @@ export default function Home() {
   // ── Render: auth screens ──────────────────────────────────────
 
   if (screen === 'loading') return (
-    <main style={{minHeight:'100vh', background:'#f5f0e8', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:FONT}}>
-      <div style={{fontSize:'14px', color:'#8b6914'}}>Loading...</div>
+    <main style={{minHeight:'100vh', background:'#FFFFFF', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:FONT}}>
+      <div style={{fontSize:'14px', color:TEXT_SEC}}>Loading...</div>
     </main>
   );
 
@@ -731,13 +736,12 @@ export default function Home() {
 
   const isMobile = width < 640;
   const font = FONT;
-  const inputStyle = { width:'100%', padding:'11px 14px', border:'1px solid #c9a84c', borderRadius:'12px', fontSize: isMobile ? '16px' : '15px', color:'#1e1008', boxSizing:'border-box', outline:'none', fontFamily:font, background:'#fff' };
-  const labelStyle = { display:'block', fontSize:'11px', fontWeight:'600', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'6px', fontFamily:font };
+  const inputStyle = { width:'100%', padding:'11px 14px', border:`1px solid ${BORDER}`, borderRadius:'8px', fontSize: isMobile ? '16px' : '15px', color:NAVY, boxSizing:'border-box', outline:'none', background:'#FFFFFF' };
+  const labelStyle = { display:'block', fontSize:'12px', fontWeight:'600', color:TEXT_SEC, textTransform:'uppercase', letterSpacing:'1.5px', marginBottom:'6px' };
   const sectionDivider = (label, action) => (
     <div style={{display:'flex', alignItems:'center', gap:10, margin:'28px 0 16px'}}>
-      <div style={{width:16, height:1, background:'#c9a84c', flexShrink:0}}/>
-      <span style={{fontSize:11, fontWeight:700, color:'#c9a84c', textTransform:'uppercase', letterSpacing:'0.15em', fontFamily:font, whiteSpace:'nowrap', flexShrink:0}}>{label}</span>
-      <div style={{flex:1, height:1, background:'#c9a84c'}}/>
+      <span style={{fontSize:12, fontWeight:600, color:NAVY, textTransform:'uppercase', letterSpacing:'1.5px', whiteSpace:'nowrap', flexShrink:0, paddingRight:8}}>{label}</span>
+      <div style={{flex:1, height:1, background:BORDER}}/>
       {action && <div style={{flexShrink:0}}>{action}</div>}
     </div>
   );
@@ -752,15 +756,15 @@ export default function Home() {
   if (done) return (
     <>
     <Navigation />
-    <main style={{minHeight:'calc(100vh - 45px)', background:'#f5f0e8', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px', fontFamily:font}}>
-      <div style={{background:'#ffffff', borderRadius:'16px', border:'1px solid #e8dfc8', width:'100%', maxWidth:'600px', margin:'0 auto', padding:'36px', textAlign:'center', boxSizing:'border-box', boxShadow:'0 4px 12px rgba(30,16,8,0.08)'}}>
-        <div style={{width:'56px', height:'56px', borderRadius:'50%', background:'#1e1008', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px'}}>
-          <span style={{fontSize:'22px', color:'#c9a84c'}}>✓</span>
+    <main style={{minHeight:'calc(100vh - 45px)', background:'#FFFFFF', display:'flex', alignItems:'center', justifyContent:'center', padding:'16px'}}>
+      <div style={{background:'#FFFFFF', borderRadius:'12px', border:`1px solid ${BORDER}`, width:'100%', maxWidth:'600px', margin:'0 auto', padding:'36px', textAlign:'center', boxSizing:'border-box'}}>
+        <div style={{width:'56px', height:'56px', borderRadius:'50%', background:NAVY, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px'}}>
+          <span style={{fontSize:'22px', color:'#FFFFFF'}}>✓</span>
         </div>
-        <h2 style={{fontSize:'22px', fontWeight:'700', color:'#1e1008', margin:'0 0 8px', fontFamily:font, letterSpacing:'0.04em'}}>Order Sent to Kitchen</h2>
-        <div style={{display:'inline-block', background:'#faf5e8', border:'1px solid #c9a84c', borderRadius:'8px', padding:'6px 16px', fontSize:'13px', fontWeight:'700', color:'#8b6914', marginBottom:'12px', fontFamily:font, letterSpacing:'0.06em'}}>{savedOrder?.order_number}</div>
-        <p style={{fontSize:'14px', color:'#8b6914', margin:'0 0 28px', fontFamily:font}}>Order for {savedOrder?.client_name} has been saved and emailed.</p>
-        <button onClick={reset} style={{background:'#1e1008', color:'#c9a84c', borderRadius:'12px', padding:'13px 28px', fontSize:'14px', fontWeight:'700', border:'none', cursor:'pointer', fontFamily:font, letterSpacing:'0.05em', width: isMobile ? '100%' : 'auto'}}>New Order</button>
+        <h2 style={{fontSize:'24px', fontWeight:'600', color:NAVY, margin:'0 0 8px'}}>Order Sent to Kitchen</h2>
+        <div style={{display:'inline-block', background:NAVY_SOFT, border:`1px solid ${BORDER}`, borderRadius:'6px', padding:'6px 16px', fontSize:'13px', fontWeight:'600', color:NAVY, marginBottom:'12px', letterSpacing:'1px'}}>{savedOrder?.order_number}</div>
+        <p style={{fontSize:'14px', color:TEXT_SEC, margin:'0 0 28px'}}>Order for {savedOrder?.client_name} has been saved and emailed.</p>
+        <button onClick={reset} style={{background:NAVY, color:'#FFFFFF', borderRadius:'8px', padding:'13px 28px', fontSize:'14px', fontWeight:'600', border:'none', cursor:'pointer', width: isMobile ? '100%' : 'auto'}}>New Order</button>
       </div>
     </main>
     </>
@@ -769,28 +773,28 @@ export default function Home() {
   return (
     <>
     <Navigation />
-    <main style={{minHeight:'calc(100vh - 45px)', background:'#f5f0e8', padding: isMobile ? '0' : '32px 24px', fontFamily:font, boxSizing:'border-box'}}>
-      <div style={{background:'#ffffff', borderRadius: isMobile ? '0' : '16px', border:'1px solid #e8dfc8', width:'100%', maxWidth:'720px', margin:'0 auto', padding: isMobile ? '20px 16px' : '40px 48px', boxSizing:'border-box', boxShadow: isMobile ? 'none' : '0 4px 12px rgba(30,16,8,0.08)'}}>
+    <main style={{minHeight:'calc(100vh - 45px)', background:'#FFFFFF', padding: isMobile ? '0' : '32px 24px', boxSizing:'border-box'}}>
+      <div style={{background:'#FFFFFF', borderRadius: isMobile ? '0' : '12px', border:`1px solid ${BORDER}`, width:'100%', maxWidth:'720px', margin:'0 auto', padding: isMobile ? '20px 16px' : '40px 48px', boxSizing:'border-box'}}>
 
-        <div style={{textAlign:'center', marginBottom:'24px', paddingBottom:'20px', borderBottom:'1px solid #e8dfc8'}}>
-          <div style={{fontSize:'11px', fontWeight:'700', color:'#c9a84c', fontFamily:font, letterSpacing:'0.1em', textTransform:'uppercase'}}>{form.order_number}</div>
+        <div style={{textAlign:'center', marginBottom:'24px', paddingBottom:'20px', borderBottom:`1px solid ${BORDER}`}}>
+          <div style={{fontSize:'12px', fontWeight:'600', color:TEXT_SEC, letterSpacing:'1.5px', textTransform:'uppercase'}}>{form.order_number}</div>
         </div>
 
-        <div style={{fontSize:'20px', fontWeight:'700', color:'#1e1008', fontFamily:font, marginBottom:'24px', letterSpacing:'0.04em'}}>New Order</div>
+        <div style={{fontSize:'24px', fontWeight:'600', color:NAVY, marginBottom:'24px'}}>New Order</div>
 
         {/* ── AI Smart Fill ───────────────────────────────────── */}
         <div style={{marginBottom:'32px'}}>
-          <div style={{fontSize:'11px', fontWeight:'700', color:'#c9a84c', textTransform:'uppercase', letterSpacing:'0.12em', marginBottom:'10px', fontFamily:font}}>
+          <div style={{fontSize:'12px', fontWeight:'600', color:NAVY, textTransform:'uppercase', letterSpacing:'1.5px', marginBottom:'10px'}}>
             ✦ AI Smart Fill
           </div>
 
           {/* Box: Event description + mic + chips + Smart Fill button */}
-          <div style={{background:'#faf5e8', borderRadius:'12px', border:'1px solid #c9a84c', padding:'12px 14px', boxShadow:'0 2px 8px rgba(30,16,8,0.05)'}}>
+          <div style={{background:NAVY_SOFT, borderRadius:'12px', border:`1px solid ${BORDER}`, padding:'12px 14px'}}>
             <div style={{display:'flex', gap:'10px'}}>
               <span style={{fontSize:'17px', flexShrink:0, marginTop:'3px', userSelect:'none', lineHeight:1}}>💡</span>
               <div style={{flex:1, position:'relative'}}>
                 <textarea
-                  style={{width:'100%', border:'none', outline:'none', resize:'none', height:'96px', fontSize: isMobile ? '16px' : '15px', color:'#1e1008', fontFamily:font, background:'transparent', lineHeight:'1.6', paddingRight:'38px', boxSizing:'border-box'}}
+                  style={{width:'100%', border:'none', outline:'none', resize:'none', height:'96px', fontSize: isMobile ? '16px' : '15px', color:NAVY, fontFamily:font, background:'transparent', lineHeight:'1.6', paddingRight:'38px', boxSizing:'border-box'}}
                   placeholder={"I'm booking a corporate lunch for 80 people on Friday at noon, client is John Smith, 973-555-1234..."}
                   value={aiDescription}
                   onChange={e => setAiDescription(e.target.value)}
@@ -800,8 +804,8 @@ export default function Home() {
                   title={aiMicListening ? 'Stop listening' : 'Voice input'}
                   style={{
                     position:'absolute', bottom:'4px', right:'0px',
-                    background: aiMicListening ? '#c0392b' : '#e8dfc8',
-                    color: aiMicListening ? '#fff' : '#8b6914',
+                    background: aiMicListening ? '#c0392b' : BORDER,
+                    color: aiMicListening ? '#fff' : TEXT_SEC,
                     border:'none', borderRadius:'50%', width:'30px', height:'30px',
                     cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
                     transition:'background 0.15s', flexShrink:0,
@@ -810,7 +814,7 @@ export default function Home() {
                   <MicIcon />
                 </button>
                 {aiMicProcessing && (
-                  <div style={{position:'absolute', bottom:'-20px', right:'0px', fontSize:'11px', color:'#c9a84c', fontFamily:font, fontWeight:'600', whiteSpace:'nowrap'}}>
+                  <div style={{position:'absolute', bottom:'-20px', right:'0px', fontSize:'11px', color:NAVY, fontFamily:font, fontWeight:'600', whiteSpace:'nowrap'}}>
                     Processing…
                   </div>
                 )}
@@ -829,12 +833,12 @@ export default function Home() {
                 ['Email',         /\b[\w.+-]+@[\w-]+\.\w+\b/.test(aiDescription)],
               ].map(([label, active]) => (
                 <span key={label} style={{
-                  fontSize:'11px', fontWeight:'600', padding:'3px 9px',
+                  fontSize:'12px', fontWeight:'500', padding:'3px 9px',
                   borderRadius:'20px', border:'1px solid',
-                  borderColor: active ? '#c9a84c' : '#e8dfc8',
-                  background: active ? '#faf5e8' : '#fff',
-                  color: active ? '#8b6914' : '#b5a58a',
-                  transition:'all 0.2s', fontFamily:font, lineHeight:'1.6',
+                  borderColor: active ? NAVY : BORDER,
+                  background: active ? NAVY_SOFT : '#FFFFFF',
+                  color: active ? NAVY : '#9CA3AF',
+                  transition:'all 0.2s', lineHeight:'1.6',
                 }}>
                   ● {label}
                 </span>
@@ -850,13 +854,13 @@ export default function Home() {
                 onClick={handleSmartFill}
                 disabled={smartFillLoading || aiMicProcessing || !aiDescription.trim()}
                 style={{
-                  background: (!aiDescription.trim() || smartFillLoading || aiMicProcessing) ? '#b5a58a' : '#1e1008',
-                  color: (!aiDescription.trim() || smartFillLoading || aiMicProcessing) ? '#fff' : '#c9a84c',
-                  border:'none', borderRadius:'12px',
-                  padding:'10px 20px', fontSize:'14px', fontWeight:'700',
+                  background: (!aiDescription.trim() || smartFillLoading || aiMicProcessing) ? '#9CA3AF' : NAVY,
+                  color: '#FFFFFF',
+                  border:'none', borderRadius:'8px',
+                  padding:'10px 20px', fontSize:'14px', fontWeight:'600',
                   cursor: (!aiDescription.trim() || smartFillLoading || aiMicProcessing) ? 'not-allowed' : 'pointer',
-                  fontFamily:font, display:'flex', alignItems:'center', justifyContent:'center', gap:'8px',
-                  transition:'background 0.15s', letterSpacing:'0.05em',
+                  display:'flex', alignItems:'center', justifyContent:'center', gap:'8px',
+                  transition:'background 0.15s',
                   width: isMobile ? '100%' : 'auto',
                 }}
               >
@@ -874,28 +878,28 @@ export default function Home() {
         {returnModal && (
           <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center', padding:'16px'}}
             onClick={() => setReturnModal(null)}>
-            <div style={{background:'#fff', borderRadius:'16px', width:'100%', maxWidth:'480px', padding:'28px', boxShadow:'0 8px 32px rgba(30,16,8,0.18)', fontFamily:font, border:'1px solid #e8dfc8'}}
+            <div style={{background:'#fff', borderRadius:'16px', width:'100%', maxWidth:'480px', padding:'28px', boxShadow:'0 8px 32px rgba(30,16,8,0.18)', fontFamily:font, border:`1px solid ${BORDER}`}}
               onClick={e => e.stopPropagation()}>
-              <div style={{fontSize:'16px', fontWeight:'700', color:'#1e1008', marginBottom:'20px', letterSpacing:'0.03em'}}>Welcome back! Last order details:</div>
+              <div style={{fontSize:'16px', fontWeight:'700', color:NAVY, marginBottom:'20px', letterSpacing:'0.03em'}}>Welcome back! Last order details:</div>
 
               {returnModal.lastAddress && (
-                <div style={{marginBottom:'20px', padding:'14px', background:'#faf5e8', borderRadius:'12px', border:'1px solid #e8dfc8'}}>
-                  <div style={{fontSize:'11px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'6px'}}>Delivery Address</div>
-                  <div style={{fontSize:'13px', color:'#1e1008', marginBottom:'12px', lineHeight:'1.6'}}>{returnModal.lastAddress}</div>
+                <div style={{marginBottom:'20px', padding:'14px', background:NAVY_SOFT, borderRadius:'12px', border:`1px solid ${BORDER}`}}>
+                  <div style={{fontSize:'11px', fontWeight:'700', color:TEXT_SEC, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'6px'}}>Delivery Address</div>
+                  <div style={{fontSize:'13px', color:NAVY, marginBottom:'12px', lineHeight:'1.6'}}>{returnModal.lastAddress}</div>
                   <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
-                    <button onClick={() => { ff('delivery_address', returnModal.lastAddress); setReturnModal(m => m.lastMenu ? { ...m, lastAddress: null } : null); }} style={{background:'#1e1008', color:'#c9a84c', padding:'8px 16px', borderRadius:'10px', border:'none', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:font, letterSpacing:'0.04em'}}>Same address</button>
-                    <button onClick={() => { setReturnModal(m => m.lastMenu ? { ...m, lastAddress: null } : null); }} style={{background:'#fff', color:'#1e1008', padding:'8px 16px', borderRadius:'10px', border:'1px solid #c9a84c', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>I'll update it</button>
+                    <button onClick={() => { ff('delivery_address', returnModal.lastAddress); setReturnModal(m => m.lastMenu ? { ...m, lastAddress: null } : null); }} style={{background:NAVY, color:'#FFFFFF', padding:'8px 16px', borderRadius:'10px', border:'none', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:font, letterSpacing:'0.04em'}}>Same address</button>
+                    <button onClick={() => { setReturnModal(m => m.lastMenu ? { ...m, lastAddress: null } : null); }} style={{background:'#FFFFFF', color:NAVY, padding:'8px 16px', borderRadius:'8px', border:`1px solid ${NAVY}`, fontSize:'13px', fontWeight:'600', cursor:'pointer'}}>I'll update it</button>
                   </div>
                 </div>
               )}
 
               {returnModal.lastMenu && (
-                <div style={{marginBottom:'4px', padding:'14px', background:'#faf5e8', borderRadius:'12px', border:'1px solid #e8dfc8'}}>
-                  <div style={{fontSize:'11px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'6px'}}>Menu</div>
-                  <div style={{fontSize:'13px', color:'#1e1008', whiteSpace:'pre-line', marginBottom:'12px', lineHeight:'1.8', maxHeight:'160px', overflowY:'auto'}}>{returnModal.lastMenu}</div>
+                <div style={{marginBottom:'4px', padding:'14px', background:NAVY_SOFT, borderRadius:'12px', border:`1px solid ${BORDER}`}}>
+                  <div style={{fontSize:'11px', fontWeight:'700', color:TEXT_SEC, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'6px'}}>Menu</div>
+                  <div style={{fontSize:'13px', color:NAVY, whiteSpace:'pre-line', marginBottom:'12px', lineHeight:'1.8', maxHeight:'160px', overflowY:'auto'}}>{returnModal.lastMenu}</div>
                   <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
-                    <button onClick={() => { ff('order_details', returnModal.lastMenu); setReturnModal(m => m.lastAddress ? { ...m, lastMenu: null } : null); }} style={{background:'#1e1008', color:'#c9a84c', padding:'8px 16px', borderRadius:'10px', border:'none', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:font, letterSpacing:'0.04em'}}>Same menu</button>
-                    <button onClick={() => { setReturnModal(m => m.lastAddress ? { ...m, lastMenu: null } : null); }} style={{background:'#fff', color:'#1e1008', padding:'8px 16px', borderRadius:'10px', border:'1px solid #c9a84c', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:font}}>I'll update it</button>
+                    <button onClick={() => { ff('order_details', returnModal.lastMenu); setReturnModal(m => m.lastAddress ? { ...m, lastMenu: null } : null); }} style={{background:NAVY, color:'#FFFFFF', padding:'8px 16px', borderRadius:'10px', border:'none', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:font, letterSpacing:'0.04em'}}>Same menu</button>
+                    <button onClick={() => { setReturnModal(m => m.lastAddress ? { ...m, lastMenu: null } : null); }} style={{background:'#FFFFFF', color:NAVY, padding:'8px 16px', borderRadius:'8px', border:`1px solid ${NAVY}`, fontSize:'13px', fontWeight:'600', cursor:'pointer'}}>I'll update it</button>
                   </div>
                 </div>
               )}
@@ -910,11 +914,11 @@ export default function Home() {
           <label style={labelStyle}>Client name <span style={required}>*</span></label>
           <input style={inputStyle} placeholder="Sarah Johnson" value={form.client_name} onChange={e => handleNameChange(e.target.value)}/>
           {suggestions.length > 0 && (
-            <div style={{position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1px solid #c9a84c', borderRadius:'12px', zIndex:10, marginTop:'4px', overflow:'hidden', boxShadow:'0 4px 12px rgba(30,16,8,0.1)'}}>
+            <div style={{position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:`1px solid ${BORDER}`, borderRadius:'12px', zIndex:10, marginTop:'4px', overflow:'hidden', boxShadow:'0 4px 12px rgba(30,16,8,0.1)'}}>
               {suggestions.map((c, i) => (
                 <div key={i} onClick={() => selectSuggestion(c)}
-                  style={{padding:'12px 16px', fontSize:'14px', cursor:'pointer', borderBottom: i < suggestions.length-1 ? '1px solid #f5f0e8':'none', fontFamily:font, color:'#1e1008', background:'#fff'}}
-                  onMouseEnter={e => e.currentTarget.style.background='#faf5e8'}
+                  style={{padding:'12px 16px', fontSize:'14px', cursor:'pointer', borderBottom: i < suggestions.length-1 ? `1px solid ${BORDER}`:'none', fontFamily:font, color:NAVY, background:'#fff'}}
+                  onMouseEnter={e => e.currentTarget.style.background=NAVY_SOFT}
                   onMouseLeave={e => e.currentTarget.style.background='#fff'}>
                   {c.client_name}
                 </div>
@@ -929,7 +933,7 @@ export default function Home() {
             <input style={inputStyle} type="tel" placeholder="201-555-0000" value={form.client_phone} onChange={e => ff('client_phone', formatPhone(e.target.value))}/>
           </div>
           <div>
-            <label style={labelStyle}>Email <span style={{fontSize:'10px', color:'#b5a58a', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
+            <label style={labelStyle}>Email <span style={{fontSize:'10px', color:'#9CA3AF', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
             <input style={inputStyle} type="email" placeholder="sarah@company.com" value={form.client_email} onChange={e => ff('client_email', e.target.value)}/>
           </div>
         </div>
@@ -975,7 +979,7 @@ export default function Home() {
         </div>
 
         <div style={{marginBottom:'18px'}}>
-          <label style={labelStyle}>Special instructions for driver <span style={{fontSize:'10px', color:'#b5a58a', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
+          <label style={labelStyle}>Special instructions for driver <span style={{fontSize:'10px', color:'#9CA3AF', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
           <textarea style={{...inputStyle, height:'80px', resize:'none'}} placeholder="Gate code, elevator only, call before arriving..." value={form.notes} onChange={e => ff('notes', e.target.value)}/>
         </div>
 
@@ -1004,9 +1008,9 @@ export default function Home() {
         <div style={{marginBottom:'18px'}}>
           <label style={labelStyle}>Number of guests</label>
           <input style={inputStyle} type="text" placeholder='e.g. "50 plus 3" or "50 including 3 vegetarian"' value={form.guest_count} onChange={e => handleGuestChange(e.target.value)} onBlur={handleGuestBlur}/>
-          {guestTotal > 0 && <p style={{fontSize:'13px', fontWeight:'700', color:'#1e1008', margin:'6px 0 0', fontFamily:font}}>= {guestTotal} total guests</p>}
-          {guestHint && <p style={{fontSize:'11px', color:'#b5a58a', margin:'3px 0 0', fontFamily:font}}>{guestHint}</p>}
-          <p style={{fontSize:'11px', color:'#b5a58a', margin:'4px 0 0', fontFamily:font}}>Use "plus" or + to add groups; "including" for dietary subsets</p>
+          {guestTotal > 0 && <p style={{fontSize:'13px', fontWeight:'700', color:NAVY, margin:'6px 0 0', fontFamily:font}}>= {guestTotal} total guests</p>}
+          {guestHint && <p style={{fontSize:'11px', color:'#9CA3AF', margin:'3px 0 0', fontFamily:font}}>{guestHint}</p>}
+          <p style={{fontSize:'11px', color:'#9CA3AF', margin:'4px 0 0', fontFamily:font}}>Use "plus" or + to add groups; "including" for dietary subsets</p>
         </div>
 
         {sectionDivider(
@@ -1017,11 +1021,11 @@ export default function Home() {
                 key={mode}
                 onClick={() => setMenuMode(mode)}
                 style={{
-                  padding:'4px 11px', fontSize:'11px', fontWeight:'700', fontFamily:font,
-                  border:`1px solid ${menuMode === mode ? '#c9a84c' : '#e8dfc8'}`,
-                  background: menuMode === mode ? '#1e1008' : '#fff',
-                  color: menuMode === mode ? '#c9a84c' : '#8b6914',
-                  borderRadius:'8px', cursor:'pointer', letterSpacing:'0.04em', whiteSpace:'nowrap',
+                  padding:'4px 11px', fontSize:'12px', fontWeight:'600',
+                  border:`1px solid ${menuMode === mode ? NAVY : BORDER}`,
+                  background: menuMode === mode ? NAVY : '#FFFFFF',
+                  color: menuMode === mode ? '#FFFFFF' : TEXT_SEC,
+                  borderRadius:'6px', cursor:'pointer', whiteSpace:'nowrap',
                 }}
               >
                 {mode === 'quick' ? 'Custom' : 'Signature Selections'}
@@ -1088,39 +1092,39 @@ export default function Home() {
               <textarea style={{...inputStyle, height:'200px', resize:'none', lineHeight:'1.8'}} value={form.order_details} onChange={handleMenu} onKeyDown={handleMenuKey}/>
               {listening === 'menu'
                 ? <p style={{fontSize:'11px', color:'#c0392b', margin:'4px 0 0', fontFamily:font}}>Listening... say "next" to start a new item</p>
-                : <p style={{fontSize:'11px', color:'#b5a58a', margin:'4px 0 0', fontFamily:font}}>Press Enter or tap mic to add items &nbsp;·&nbsp; <span style={{color:'#c9a84c'}}>Tip: say "next" to add a new menu item</span></p>
+                : <p style={{fontSize:'11px', color:'#9CA3AF', margin:'4px 0 0', fontFamily:font}}>Press Enter or tap mic to add items &nbsp;·&nbsp; <span style={{color:NAVY}}>Tip: say "next" to add a new menu item</span></p>
               }
             </div>
           </>
         )}
 
         {menuMode === 'quick' && menuViewMode === 'grid' && (
-              <div style={{marginBottom:'18px', border:'1px solid #e8dfc8', borderRadius:'12px', overflow:'hidden'}}>
-                <div style={{display:'grid', gridTemplateColumns:'1fr 148px 68px', gap:'8px', padding:'8px 14px 8px 16px', background:'#faf5e8', borderBottom:'1px solid #e8dfc8'}}>
-                  <div style={{fontSize:'10px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font}}>Item</div>
-                  <div style={{fontSize:'10px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font}}>Size</div>
-                  <div style={{fontSize:'10px', fontWeight:'700', color:'#8b6914', textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font, textAlign:'center'}}>Qty</div>
+              <div style={{marginBottom:'18px', border:`1px solid ${BORDER}`, borderRadius:'12px', overflow:'hidden'}}>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 148px 68px', gap:'8px', padding:'8px 14px 8px 16px', background:NAVY_SOFT, borderBottom:`1px solid ${BORDER}`}}>
+                  <div style={{fontSize:'10px', fontWeight:'700', color:TEXT_SEC, textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font}}>Item</div>
+                  <div style={{fontSize:'10px', fontWeight:'700', color:TEXT_SEC, textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font}}>Size</div>
+                  <div style={{fontSize:'10px', fontWeight:'700', color:TEXT_SEC, textTransform:'uppercase', letterSpacing:'0.08em', fontFamily:font, textAlign:'center'}}>Qty</div>
                 </div>
                 {menuItems.map((item, i) => (
-                  <div key={i} style={{display:'grid', gridTemplateColumns:'1fr 148px 68px', gap:'8px', padding:'10px 14px 10px 16px', alignItems:'center', borderBottom: i < menuItems.length - 1 ? '1px solid #f5f0e8' : 'none', background:'#fff'}}>
-                    <div style={{fontSize:'14px', fontWeight:'500', color:'#1e1008', fontFamily:font, lineHeight:'1.35', minWidth:0}}>{item.name}</div>
+                  <div key={i} style={{display:'grid', gridTemplateColumns:'1fr 148px 68px', gap:'8px', padding:'10px 14px 10px 16px', alignItems:'center', borderBottom: i < menuItems.length - 1 ? `1px solid ${BORDER}` : 'none', background:'#fff'}}>
+                    <div style={{fontSize:'14px', fontWeight:'500', color:NAVY, fontFamily:font, lineHeight:'1.35', minWidth:0}}>{item.name}</div>
                     <div>
                       {CAT_SIZES[item.cat] ? (
                         <select
                           value={item.size}
                           onChange={e => updateMenuItem(i, 'size', e.target.value)}
-                          style={{width:'100%', minHeight:'44px', padding:'8px 10px', border:'1px solid #c9a84c', borderRadius:'8px', fontSize:'13px', color:'#1e1008', fontFamily:font, background:'#fff', outline:'none'}}
+                          style={{width:'100%', minHeight:'44px', padding:'8px 10px', border:`1px solid ${BORDER}`, borderRadius:'8px', fontSize:'13px', color:NAVY, fontFamily:font, background:'#fff', outline:'none'}}
                         >
                           {CAT_SIZES[item.cat].map(s => <option key={s}>{s}</option>)}
                         </select>
                       ) : (
-                        <div style={{fontSize:'12px', color:'#b5a58a', fontFamily:font, textAlign:'center', padding:'4px 0'}}>—</div>
+                        <div style={{fontSize:'12px', color:'#9CA3AF', fontFamily:font, textAlign:'center', padding:'4px 0'}}>—</div>
                       )}
                     </div>
                     <select
                       value={item.qty}
                       onChange={e => updateMenuItem(i, 'qty', e.target.value)}
-                      style={{width:'100%', minHeight:'44px', padding:'8px 4px', border:'1px solid #c9a84c', borderRadius:'8px', fontSize:'15px', fontWeight:'600', color:'#1e1008', fontFamily:font, background:'#fff', outline:'none', textAlign:'center'}}
+                      style={{width:'100%', minHeight:'44px', padding:'8px 4px', border:`1px solid ${BORDER}`, borderRadius:'8px', fontSize:'15px', fontWeight:'600', color:NAVY, fontFamily:font, background:'#fff', outline:'none', textAlign:'center'}}
                     >
                       {[1,2,3,4].map(n => <option key={n} value={n}>{n}</option>)}
                     </select>
@@ -1130,7 +1134,7 @@ export default function Home() {
             )}
 
         <div style={{marginBottom:'18px'}}>
-          <label style={labelStyle}>Additional notes for kitchen <span style={{fontSize:'10px', color:'#b5a58a', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
+          <label style={labelStyle}>Additional notes for kitchen <span style={{fontSize:'10px', color:'#9CA3AF', fontWeight:'400', textTransform:'none'}}>(optional)</span></label>
           <textarea style={{...inputStyle, height:'80px', resize:'none'}} placeholder="Allergy notes, substitutions, prep instructions..." value={form.kitchen_notes} onChange={e => ff('kitchen_notes', e.target.value)}/>
         </div>
 
@@ -1150,17 +1154,15 @@ export default function Home() {
                 style={{
                   display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
                   gap:'10px', padding:'22px 16px',
-                  border: sel ? '3px solid #c9a84c' : '1px solid #ddd',
-                  borderRadius:'12px',
-                  background: sel ? '#fff8e7' : '#fff',
+                  border: sel ? `2px solid ${NAVY}` : `1px solid ${BORDER}`,
+                  borderRadius:'8px',
+                  background: sel ? NAVY_SOFT : '#FFFFFF',
                   cursor:'pointer',
-                  transition:'border 0.2s, background 0.2s',
-                  fontFamily: font,
-                  boxShadow: sel ? '0 0 0 1px #c9a84c20' : 'none',
+                  transition:'border 0.15s, background 0.15s',
                 }}
               >
                 <span style={{fontSize:'30px', lineHeight:1}}>{icon}</span>
-                <span style={{fontSize:'14px', fontWeight: sel ? '700' : '500', color:'#1e1008', fontFamily: font}}>
+                <span style={{fontSize:'14px', fontWeight: sel ? '700' : '500', color:NAVY, fontFamily: font}}>
                   {method}
                 </span>
               </button>
@@ -1168,13 +1170,13 @@ export default function Home() {
           })}
         </div>
 
-        <div style={{fontSize:'11px', color:'#b5a58a', marginBottom:'16px', fontFamily:font}}><span style={required}>*</span> Required fields</div>
+        <div style={{fontSize:'11px', color:'#9CA3AF', marginBottom:'16px', fontFamily:font}}><span style={required}>*</span> Required fields</div>
 
         <button
           onClick={save}
           disabled={saving || timeError}
           title={timeError ? "Fix Time There — must be after Time Out" : undefined}
-          style={{width:'100%', background: (saving || timeError) ? '#b5a58a':'#1e1008', color: (saving || timeError) ? '#fff' : '#c9a84c', borderRadius:'12px', padding:'16px', fontSize:'16px', fontWeight:'700', border:'none', cursor: (saving || timeError) ? 'not-allowed':'pointer', fontFamily:font, letterSpacing:'0.05em'}}
+          style={{width:'100%', background: (saving || timeError) ? '#9CA3AF':NAVY, color: '#FFFFFF', borderRadius:'8px', padding:'16px', fontSize:'16px', fontWeight:'600', border:'none', cursor: (saving || timeError) ? 'not-allowed':'pointer'}}
         >
           {saving ? 'Sending...' : (timeError ? 'Fix times to send order' : 'Send order to kitchen')}
         </button>

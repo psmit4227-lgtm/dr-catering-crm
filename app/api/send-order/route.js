@@ -37,7 +37,7 @@ export async function POST(request) {
       html: `
         <h2 style="font-family:Arial">New Order — ${order.order_number}</h2>
         <p style="font-family:Arial;font-size:15px;font-weight:bold;margin:8px 0;">
-          Delivery: <span style="background:${isMetrobi ? '#c9a84c' : '#1e1008'};color:#fff;padding:3px 10px;border-radius:4px;">${order.delivery_method || 'DR Catering Driver'}</span>
+          Delivery: <span style="background:${isMetrobi ? '#5C6478' : '#1B2845'};color:#fff;padding:3px 10px;border-radius:4px;">${order.delivery_method || 'DR Catering Driver'}</span>
         </p>
         <p style="font-family:Arial;font-size:14px">Order for ${order.client_name} — see attached PDF for details.</p>
       `,

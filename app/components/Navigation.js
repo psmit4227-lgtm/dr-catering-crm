@@ -8,7 +8,9 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-const FONT = 'Georgia, serif';
+const NAVY     = '#1B2845';
+const TEXT_SEC = '#5C6478';
+const BORDER   = '#E5E7EB';
 
 const TABS = [
   { label: 'New Order',      href: '/' },
@@ -29,21 +31,20 @@ export default function Navigation() {
 
   return (
     <nav className="nav-root" style={{
-      background: '#f5f0e8',
+      background: '#FFFFFF',
       display: 'flex',
       alignItems: 'center',
       padding: '0 24px',
-      borderBottom: '1px solid #c9a84c',
+      borderBottom: `1px solid ${BORDER}`,
       flexShrink: 0,
     }}>
       <div className="nav-brand" style={{
-        fontFamily: FONT,
-        fontWeight: 700,
-        color: '#1e1008',
+        fontWeight: 600,
+        color: NAVY,
         fontSize: 13,
         marginRight: 28,
         flexShrink: 0,
-        letterSpacing: '4px',
+        letterSpacing: '3px',
         textTransform: 'uppercase',
       }}>
         DR Catering
@@ -57,17 +58,15 @@ export default function Navigation() {
               key={tab.href}
               href={tab.href}
               style={{
-                color: active ? '#1e1008' : '#8b6914',
+                color: active ? NAVY : TEXT_SEC,
                 textDecoration: 'none',
-                fontFamily: FONT,
-                fontSize: 13,
-                fontWeight: active ? 700 : 400,
+                fontSize: 14,
+                fontWeight: active ? 600 : 400,
                 padding: '14px 16px',
-                borderBottom: active ? '2px solid #c9a84c' : '2px solid transparent',
+                borderBottom: active ? `2px solid ${NAVY}` : '2px solid transparent',
                 display: 'inline-block',
                 whiteSpace: 'nowrap',
                 transition: 'color 0.15s',
-                letterSpacing: '0.03em',
               }}
             >
               {tab.label}
@@ -81,16 +80,14 @@ export default function Navigation() {
         onClick={handleSignOut}
         style={{
           background: 'transparent',
-          border: '1px solid #c9a84c',
+          border: `1px solid ${NAVY}`,
           borderRadius: 8,
           padding: '6px 14px',
-          fontSize: 12,
-          fontWeight: 600,
-          color: '#8b6914',
+          fontSize: 13,
+          fontWeight: 500,
+          color: NAVY,
           cursor: 'pointer',
-          fontFamily: FONT,
           flexShrink: 0,
-          letterSpacing: '0.04em',
           transition: 'background 0.15s',
         }}
       >

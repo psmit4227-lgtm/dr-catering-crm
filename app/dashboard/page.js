@@ -9,12 +9,16 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-const FONT    = 'Georgia, serif';
-const BG      = '#f5f0e8';
-const ESPRESSO = '#1e1008';
-const GOLD    = '#c9a84c';
-const TEXT_SEC = '#8b6914';
-const SHADOW  = '0 4px 12px rgba(30,16,8,0.08)';
+const FONT    = 'inherit';
+const BG      = '#FFFFFF';
+const NAVY    = '#1B2845';
+const NAVY_SOFT = '#E8ECF4';
+const TEXT_SEC = '#5C6478';
+const BORDER  = '#E5E7EB';
+// Kept for legacy references in this file (all values now resolve to navy).
+const ESPRESSO = NAVY;
+const GOLD     = NAVY;
+const SHADOW   = 'none';
 
 function localDateStr(offset = 0) {
   const d = new Date();
@@ -93,7 +97,7 @@ export default function DashboardPage() {
         <div style={{ maxWidth:880, margin:'0 auto' }}>
 
           {/* Page title */}
-          <div style={{ fontSize:22, fontWeight:700, color: ESPRESSO, fontFamily:FONT, marginBottom:28, letterSpacing:'0.04em' }}>Dashboard</div>
+          <div style={{ fontSize:28, fontWeight:600, color: NAVY, marginBottom:28 }}>Dashboard</div>
 
           {/* Stats row */}
           <div className="stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:16, marginBottom:36 }}>
@@ -139,20 +143,18 @@ export default function DashboardPage() {
 function StatCard({ label, value, sub }) {
   return (
     <div className="card-hover" style={{
-      background: '#fff',
-      borderRadius: 16,
-      border: '1px solid #e8dfc8',
-      borderTop: `3px solid ${GOLD}`,
+      background: '#FFFFFF',
+      borderRadius: 12,
+      border: `1px solid ${BORDER}`,
       padding: '20px 22px',
-      boxShadow: '0 4px 12px rgba(30,16,8,0.08)',
     }}>
-      <div style={{ fontSize:10, fontWeight:700, color: GOLD, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10, fontFamily:FONT }}>
+      <div style={{ fontSize:12, fontWeight:600, color: TEXT_SEC, textTransform:'uppercase', letterSpacing:'1.5px', marginBottom:10 }}>
         {label}
       </div>
-      <div style={{ fontSize:34, fontWeight:700, color: ESPRESSO, fontFamily:FONT, lineHeight:1 }}>
+      <div style={{ fontSize:32, fontWeight:600, color: NAVY, lineHeight:1 }}>
         {value}
       </div>
-      <div style={{ fontSize:12, color: TEXT_SEC, fontFamily:FONT, marginTop:5 }}>{sub}</div>
+      <div style={{ fontSize:13, color: TEXT_SEC, marginTop:6 }}>{sub}</div>
     </div>
   );
 }
@@ -160,12 +162,11 @@ function StatCard({ label, value, sub }) {
 function Section({ title, children }) {
   return (
     <div style={{ marginBottom:36 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
-        <div style={{ width:16, height:1, background: GOLD, flexShrink:0 }} />
-        <span style={{ fontSize:11, fontWeight:700, color: GOLD, textTransform:'uppercase', letterSpacing:'0.15em', fontFamily:FONT, whiteSpace:'nowrap', flexShrink:0 }}>
+      <div style={{ display:'flex', alignItems:'center', marginBottom:14 }}>
+        <span style={{ fontSize:12, fontWeight:600, color: NAVY, textTransform:'uppercase', letterSpacing:'1.5px', whiteSpace:'nowrap', flexShrink:0, paddingRight:12 }}>
           {title}
         </span>
-        <div style={{ flex:1, height:1, background: GOLD }} />
+        <div style={{ flex:1, height:1, background: BORDER }} />
       </div>
       {children}
     </div>
@@ -179,32 +180,31 @@ function EmptyNote({ text }) {
 }
 
 function OrderRow({ order, isTomorrow }) {
-  const rowBg      = isTomorrow ? '#fffbf0' : '#fff';
-  const borderLeft = isTomorrow ? `3px solid ${GOLD}` : '3px solid transparent';
+  const rowBg      = isTomorrow ? NAVY_SOFT : '#FFFFFF';
+  const borderLeft = isTomorrow ? `3px solid ${NAVY}` : '3px solid transparent';
 
   return (
     <div className="card-hover" style={{
       background: rowBg,
       borderRadius: 12,
-      border: '1px solid #e8dfc8',
+      border: `1px solid ${BORDER}`,
       borderLeft,
       padding: '14px 18px',
       marginBottom: 10,
-      boxShadow: '0 2px 8px rgba(30,16,8,0.06)',
     }}>
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:10 }}>
 
         {/* Left: name + order # */}
         <div style={{ flexShrink:0 }}>
           {isTomorrow && (
-            <div style={{ fontSize:10, fontWeight:700, color: GOLD, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:3, fontFamily:FONT }}>
+            <div style={{ fontSize:11, fontWeight:600, color: NAVY, textTransform:'uppercase', letterSpacing:'1.5px', marginBottom:3 }}>
               Tomorrow
             </div>
           )}
-          <div style={{ fontSize:10, fontWeight:700, color: TEXT_SEC, fontFamily:FONT, marginBottom:3, letterSpacing:'0.06em' }}>
+          <div style={{ fontSize:11, fontWeight:600, color: TEXT_SEC, marginBottom:3, letterSpacing:'1px' }}>
             {order.order_number}
           </div>
-          <div style={{ fontSize:16, fontWeight:700, color: ESPRESSO, fontFamily:FONT }}>
+          <div style={{ fontSize:16, fontWeight:600, color: NAVY }}>
             {order.client_name || '—'}
           </div>
         </div>
@@ -231,8 +231,8 @@ function OrderRow({ order, isTomorrow }) {
 function MiniStat({ label, value }) {
   return (
     <div style={{ textAlign:'right', flexShrink:0 }}>
-      <div style={{ fontSize:10, fontWeight:700, color: GOLD, fontFamily:FONT, textTransform:'uppercase', letterSpacing:'0.06em' }}>{label}</div>
-      <div style={{ fontSize:13, fontWeight:600, color: ESPRESSO, fontFamily:FONT }}>{value}</div>
+      <div style={{ fontSize:11, fontWeight:600, color: TEXT_SEC, textTransform:'uppercase', letterSpacing:'1.5px' }}>{label}</div>
+      <div style={{ fontSize:13, fontWeight:600, color: NAVY }}>{value}</div>
     </div>
   );
 }

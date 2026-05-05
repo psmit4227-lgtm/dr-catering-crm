@@ -3,15 +3,31 @@
 @tailwind utilities;
 
 :root {
-  --background: #f5f0e8;
-  --foreground: #1e1008;
+  --background: #FFFFFF;
+  --foreground: #1B2845;
+  --navy: #1B2845;
+  --navy-hover: #2A3D63;
+  --navy-soft: #E8ECF4;
+  --text-secondary: #5C6478;
+  --border: #E5E7EB;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Georgia, serif;
+html, body {
+  background: #FFFFFF;
+  color: #1B2845;
+  /* Desktop default — Calibri reads cleanest on Windows / browsers that have it */
+  font-family: 'Calibri', 'Segoe UI', system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Phones / tablets — Calibri isn't installed on most mobile OSes; fall through
+   to whatever the device's system font is. */
+@media (max-width: 768px) {
+  html, body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
 }
 
 /* ── Touch targets ─────────────────────────────────────── */
@@ -27,23 +43,23 @@ select {
   box-sizing: border-box;
 }
 
-/* ── Gold focus ring ───────────────────────────────────── */
+/* ── Navy focus ring ───────────────────────────────────── */
 input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.22) !important;
-  border-color: #c9a84c !important;
+  box-shadow: 0 0 0 3px rgba(27, 40, 69, 0.18) !important;
+  border-color: #1B2845 !important;
 }
 
-/* ── Card hover lift ───────────────────────────────────── */
+/* ── Card hover (subtle, no shadow) ────────────────────── */
 .card-hover {
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
   cursor: pointer;
 }
 .card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(30, 16, 8, 0.12) !important;
+  background: #FAFBFD !important;
+  border-color: #C9D2E0 !important;
 }
 
 /* ── Navigation ────────────────────────────────────────── */

@@ -10,12 +10,16 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-const FONT     = 'Georgia, serif';
-const BG       = '#f5f0e8';
-const ESPRESSO = '#1e1008';
-const GOLD     = '#c9a84c';
-const TEXT_SEC = '#8b6914';
-const SHADOW   = '0 4px 12px rgba(30,16,8,0.08)';
+const FONT      = 'inherit';
+const BG        = '#FFFFFF';
+const NAVY      = '#1B2845';
+const NAVY_HOVER = '#2A3D63';
+const NAVY_SOFT = '#E8ECF4';
+const TEXT_SEC  = '#5C6478';
+const BORDER    = '#E5E7EB';
+const ESPRESSO  = NAVY;
+const GOLD      = NAVY;
+const SHADOW    = 'none';
 
 function localDateStr(offset = 0) {
   const d = new Date();
@@ -225,10 +229,10 @@ export default function LogisticsPage() {
       <main className="page-main" style={{ minHeight: 'calc(100vh - 45px)', background: BG, padding: '32px 24px', fontFamily: FONT, boxSizing: 'border-box' }}>
         <div style={{ maxWidth: 880, margin: '0 auto' }}>
 
-          <div style={{ fontSize: 22, fontWeight: 700, color: ESPRESSO, marginBottom: 6, letterSpacing: '0.04em' }}>
+          <div style={{ fontSize: 28, fontWeight: 600, color: NAVY, marginBottom: 6 }}>
             Logistics
           </div>
-          <div style={{ fontSize: 13, color: TEXT_SEC, marginBottom: 24 }}>
+          <div style={{ fontSize: 14, color: TEXT_SEC, marginBottom: 24 }}>
             Plan your day. Pulls all DR Catering Driver deliveries and clusters them into routes.
           </div>
 
@@ -245,12 +249,12 @@ export default function LogisticsPage() {
 
               {plan?.mockMode && (
                 <div style={{
-                  background: '#fff8e7',
-                  border: `1px solid ${GOLD}`,
-                  borderRadius: 12,
+                  background: NAVY_SOFT,
+                  border: `1px solid ${BORDER}`,
+                  borderRadius: 8,
                   padding: '10px 14px',
-                  fontSize: 12,
-                  color: ESPRESSO,
+                  fontSize: 13,
+                  color: NAVY,
                   marginBottom: 16,
                 }}>
                   🧪 Mock mode — real Google Maps data activates when API key is added
@@ -300,17 +304,14 @@ export default function LogisticsPage() {
                     disabled={planning}
                     className="plan-btn"
                     style={{
-                      background: planning ? '#b5a58a' : ESPRESSO,
-                      color: GOLD,
+                      background: planning ? '#9CA3AF' : NAVY,
+                      color: '#FFFFFF',
                       border: 'none',
-                      borderRadius: 12,
+                      borderRadius: 8,
                       padding: '13px 28px',
                       fontSize: 15,
-                      fontWeight: 700,
-                      fontFamily: FONT,
+                      fontWeight: 600,
                       cursor: planning ? 'not-allowed' : 'pointer',
-                      letterSpacing: '0.05em',
-                      boxShadow: SHADOW,
                       flex: '0 1 auto',
                     }}
                   >
@@ -325,7 +326,7 @@ export default function LogisticsPage() {
               </Section>
 
               {plan && plan.totalStops === 0 && !brokenOrders && (
-                <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e8dfc8', padding: 28, textAlign: 'center', color: TEXT_SEC, fontSize: 14, marginTop: 12 }}>
+                <div style={{ background: '#fff', borderRadius: 16, border: `1px solid ${BORDER}`, padding: 28, textAlign: 'center', color: TEXT_SEC, fontSize: 14, marginTop: 12 }}>
                   {plan.message || 'No DR Catering Driver deliveries for this date.'}
                 </div>
               )}
@@ -370,17 +371,14 @@ export default function LogisticsPage() {
                     <button
                       onClick={() => downloadDriverSheetsPDF(plan, planDate, plan.mockMode)}
                       style={{
-                        background: ESPRESSO,
-                        color: GOLD,
+                        background: NAVY,
+                        color: '#FFFFFF',
                         border: 'none',
-                        borderRadius: 12,
+                        borderRadius: 8,
                         padding: '12px 22px',
                         fontSize: 14,
-                        fontWeight: 700,
-                        fontFamily: FONT,
+                        fontWeight: 600,
                         cursor: 'pointer',
-                        letterSpacing: '0.04em',
-                        boxShadow: SHADOW,
                       }}
                     >
                       📄 Print Driver Sheets
@@ -394,15 +392,13 @@ export default function LogisticsPage() {
           {/* Historical averages widget — always visible at bottom */}
           {averages && (
             <div style={{
-              background: '#fff',
-              borderRadius: 16,
-              border: '1px solid #e8dfc8',
-              borderTop: `3px solid ${GOLD}`,
+              background: '#FFFFFF',
+              borderRadius: 12,
+              border: `1px solid ${BORDER}`,
               padding: '20px 22px',
-              boxShadow: SHADOW,
               marginTop: 24,
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: GOLD, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: NAVY, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 12 }}>
                 Last 30 Days
               </div>
               <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -556,8 +552,8 @@ function ConfirmModal({ date, onDateChange, count, onYes, onNo }) {
             onClick={onYes}
             style={{
               flex: 1,
-              background: ESPRESSO,
-              color: GOLD,
+              background: NAVY,
+              color: '#FFFFFF',
               border: 'none',
               borderRadius: 12,
               padding: '12px 14px',
@@ -592,7 +588,7 @@ function WaitingScreen({ date, count, onResume }) {
     <div style={{
       background: '#fff',
       borderRadius: 16,
-      border: '1px solid #e8dfc8',
+      border: `1px solid ${BORDER}`,
       borderTop: `3px solid ${GOLD}`,
       padding: '40px 28px',
       textAlign: 'center',
@@ -609,8 +605,8 @@ function WaitingScreen({ date, count, onResume }) {
         type="button"
         onClick={onResume}
         style={{
-          background: ESPRESSO,
-          color: GOLD,
+          background: NAVY,
+          color: '#FFFFFF',
           border: 'none',
           borderRadius: 12,
           padding: '12px 22px',
@@ -631,16 +627,15 @@ function WaitingScreen({ date, count, onResume }) {
 function OrderCountBanner({ date, count }) {
   return (
     <div style={{
-      background: BG,
-      borderLeft: `4px solid ${GOLD}`,
+      background: NAVY_SOFT,
+      borderLeft: `4px solid ${NAVY}`,
       borderRadius: 6,
       padding: '10px 14px',
-      fontFamily: FONT,
-      fontSize: 13,
-      color: ESPRESSO,
+      fontSize: 14,
+      color: NAVY,
       marginBottom: 16,
     }}>
-      📋 <span style={{ fontWeight: 700 }}>
+      📋 <span style={{ fontWeight: 600 }}>
         {count == null ? '…' : count} {count === 1 ? 'order' : 'orders'}
       </span>{' '}
       for {fmtDateNice(date)}
@@ -678,8 +673,8 @@ function BrokenOrdersBanner({ brokenOrders }) {
         href="/orders"
         style={{
           display: 'inline-block',
-          background: ESPRESSO,
-          color: GOLD,
+          background: NAVY,
+          color: '#FFFFFF',
           border: 'none',
           borderRadius: 10,
           padding: '8px 18px',
@@ -699,9 +694,9 @@ function BrokenOrdersBanner({ brokenOrders }) {
 function NewOrdersWarning({ count, date, onReplan, busy }) {
   return (
     <div className="warn-banner" style={{
-      background: '#fff8e7',
-      border: `1px solid ${GOLD}`,
-      borderRadius: 10,
+      background: '#FEF9E7',
+      border: '1px solid #F4D35E',
+      borderRadius: 8,
       padding: '12px 16px',
       marginBottom: 16,
       display: 'flex',
@@ -709,29 +704,26 @@ function NewOrdersWarning({ count, date, onReplan, busy }) {
       alignItems: 'center',
       justifyContent: 'space-between',
       flexWrap: 'wrap',
-      fontFamily: FONT,
-      color: ESPRESSO,
+      color: '#5C4A1B',
       fontSize: 13,
       lineHeight: 1.4,
     }}>
       <div style={{ flex: '1 1 240px', minWidth: 0 }}>
-        ⚠️ <span style={{ fontWeight: 700 }}>{count} new {count === 1 ? 'order' : 'orders'}</span> added for {fmtDateNice(date)} since you last planned. Click <em>Re-plan day</em> to update.
+        ⚠️ <span style={{ fontWeight: 600 }}>{count} new {count === 1 ? 'order' : 'orders'}</span> added for {fmtDateNice(date)} since you last planned. Click <em>Re-plan day</em> to update.
       </div>
       <button
         type="button"
         onClick={onReplan}
         disabled={busy}
         style={{
-          background: busy ? '#b5a58a' : ESPRESSO,
-          color: GOLD,
+          background: busy ? '#9CA3AF' : NAVY,
+          color: '#FFFFFF',
           border: 'none',
-          borderRadius: 10,
+          borderRadius: 8,
           padding: '8px 16px',
           fontSize: 13,
-          fontWeight: 700,
-          fontFamily: FONT,
+          fontWeight: 600,
           cursor: busy ? 'not-allowed' : 'pointer',
-          letterSpacing: '0.04em',
           flexShrink: 0,
         }}
       >
@@ -744,12 +736,11 @@ function NewOrdersWarning({ count, date, onReplan, busy }) {
 function Section({ title, children }) {
   return (
     <div style={{ marginBottom: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <div style={{ width: 16, height: 1, background: GOLD }} />
-        <span style={{ fontSize: 11, fontWeight: 700, color: GOLD, textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: NAVY, textTransform: 'uppercase', letterSpacing: '1.5px', whiteSpace: 'nowrap', flexShrink: 0, paddingRight: 12 }}>
           {title}
         </span>
-        <div style={{ flex: 1, height: 1, background: GOLD }} />
+        <div style={{ flex: 1, height: 1, background: BORDER }} />
       </div>
       {children}
     </div>
@@ -759,20 +750,18 @@ function Section({ title, children }) {
 function SummaryCard({ label, value, sub, big }) {
   return (
     <div style={{
-      background: '#fff',
-      borderRadius: 16,
-      border: '1px solid #e8dfc8',
-      borderTop: `3px solid ${GOLD}`,
+      background: '#FFFFFF',
+      borderRadius: 12,
+      border: `1px solid ${BORDER}`,
       padding: '18px 20px',
-      boxShadow: SHADOW,
     }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: GOLD, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_SEC, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 8 }}>
         {label}
       </div>
-      <div style={{ fontSize: big ? 44 : 32, fontWeight: 700, color: ESPRESSO, lineHeight: 1 }}>
+      <div style={{ fontSize: big ? 40 : 30, fontWeight: 600, color: NAVY, lineHeight: 1 }}>
         {value}
       </div>
-      {sub && <div style={{ fontSize: 12, color: TEXT_SEC, marginTop: 5 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 13, color: TEXT_SEC, marginTop: 5 }}>{sub}</div>}
     </div>
   );
 }
@@ -783,16 +772,14 @@ function TollButton({ selected, onClick, title, sub }) {
       onClick={onClick}
       style={{
         flex: '1 1 200px',
-        background: selected ? ESPRESSO : '#fff',
-        color: selected ? GOLD : ESPRESSO,
-        border: `2px solid ${GOLD}`,
-        borderRadius: 12,
+        background: selected ? NAVY : '#FFFFFF',
+        color: selected ? '#FFFFFF' : NAVY,
+        border: `1px solid ${NAVY}`,
+        borderRadius: 8,
         padding: '14px 18px',
-        fontFamily: FONT,
         fontSize: 14,
-        fontWeight: 700,
+        fontWeight: 600,
         cursor: 'pointer',
-        letterSpacing: '0.04em',
         textAlign: 'center',
         transition: 'background 0.15s, color 0.15s',
       }}
@@ -805,24 +792,22 @@ function TollButton({ selected, onClick, title, sub }) {
 function DriverCard({ driver, expanded, onToggleStop, driverIdx }) {
   return (
     <div style={{
-      background: '#fff',
-      borderRadius: 16,
-      border: '1px solid #e8dfc8',
-      borderTop: `4px solid ${GOLD}`,
+      background: '#FFFFFF',
+      borderRadius: 12,
+      border: `1px solid ${BORDER}`,
       padding: '20px 22px',
       marginBottom: 16,
-      boxShadow: SHADOW,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: GOLD, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: TEXT_SEC, textTransform: 'uppercase', letterSpacing: '1.5px' }}>
             Driver
           </span>
-          <span style={{ fontSize: 22, fontWeight: 700, color: ESPRESSO, letterSpacing: '0.04em' }}>
+          <span style={{ fontSize: 22, fontWeight: 600, color: NAVY }}>
             {driver.driverNumber}
           </span>
         </div>
-        <div style={{ fontSize: 12, color: TEXT_SEC }}>
+        <div style={{ fontSize: 13, color: TEXT_SEC }}>
           {driver.stops.length} {driver.stops.length === 1 ? 'stop' : 'stops'} · {(driver.totalMiles || 0).toFixed(1)} mi · {fmtDuration(driver.totalDriveMinutes)}
         </div>
       </div>
@@ -852,7 +837,7 @@ function DriverCard({ driver, expanded, onToggleStop, driverIdx }) {
             >
               <StopBadge n={stop.stopNumber} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: ESPRESSO }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: NAVY }}>
                   {stop.clientName || '—'}
                 </div>
                 <div style={{ fontSize: 12, color: TEXT_SEC, marginTop: 2 }}>
@@ -864,7 +849,7 @@ function DriverCard({ driver, expanded, onToggleStop, driverIdx }) {
                   </div>
                 )}
               </div>
-              <div style={{ fontSize: 11, color: GOLD, fontWeight: 700, paddingTop: 3 }}>
+              <div style={{ fontSize: 11, color: NAVY, fontWeight: 600, paddingTop: 3 }}>
                 {isOpen ? '▾' : '▸'}
               </div>
             </button>
@@ -874,11 +859,11 @@ function DriverCard({ driver, expanded, onToggleStop, driverIdx }) {
                 marginTop: 6,
                 marginLeft: 32,
                 padding: '10px 12px',
-                background: '#fdf9ef',
-                borderLeft: `2px solid ${GOLD}`,
+                background: NAVY_SOFT,
+                borderLeft: `2px solid ${NAVY}`,
                 borderRadius: 6,
-                fontSize: 12.5,
-                color: ESPRESSO,
+                fontSize: 13,
+                color: NAVY,
               }}>
                 <div style={{ marginBottom: 4 }}>
                   <span style={{ color: TEXT_SEC, fontWeight: 700, marginRight: 6 }}>Address:</span>
@@ -897,8 +882,8 @@ function DriverCard({ driver, expanded, onToggleStop, driverIdx }) {
                   </div>
                 )}
                 {stop.driverNotes?.trim() && (
-                  <div style={{ marginTop: 6, padding: '8px 10px', background: '#fffcdc', borderRadius: 4 }}>
-                    <span style={{ color: TEXT_SEC, fontWeight: 700, marginRight: 6 }}>Driver Notes:</span>
+                  <div style={{ marginTop: 6, padding: '8px 10px', background: '#FEF9E7', border: '1px solid #F4D35E', borderRadius: 4, color: '#5C4A1B' }}>
+                    <span style={{ color: '#5C4A1B', fontWeight: 600, marginRight: 6 }}>Driver Notes:</span>
                     {stop.driverNotes}
                   </div>
                 )}
@@ -916,7 +901,7 @@ function ScheduleRow({ icon, label, time, bold }) {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ fontSize: 14 }}>{icon}</span>
-        <span style={{ fontSize: 13, fontWeight: bold ? 700 : 600, color: GOLD, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: TEXT_SEC, textTransform: 'uppercase', letterSpacing: '1.5px' }}>
           {label}
         </span>
       </div>
@@ -933,8 +918,8 @@ function StopBadge({ n }) {
       width: 24,
       height: 24,
       borderRadius: '50%',
-      background: ESPRESSO,
-      color: GOLD,
+      background: NAVY,
+      color: '#FFFFFF',
       fontWeight: 700,
       fontSize: 12,
       display: 'flex',

@@ -1,13 +1,13 @@
 'use client';
 import { useState } from 'react';
 
-const F = 'Georgia, serif';
-const BLACK  = '#1e1008';
-const GOLD   = '#c9a84c';
-const GOLD_D = '#8b6914';
-const CREAM  = '#faf5e8';
-const BORDER = '#e8dfc8';
-const GRAY   = '#b5a58a';
+const F = 'inherit';
+const BLACK  = '#1B2845';
+const GOLD   = '#1B2845';
+const GOLD_D = '#5C6478';
+const CREAM  = '#E8ECF4';
+const BORDER = '#E5E7EB';
+const GRAY   = '#9CA3AF';
 
 const TRAY  = ['Half tray', 'Full tray'];
 const SALAD = ['Half salad', 'Full salad'];
@@ -476,7 +476,7 @@ export default function MenuWizard({ onComplete, onCancel, isMobile, suggestedPk
         </button>
         <button
           onClick={goNext}
-          style={{ ...btnBase, background: BLACK, color: GOLD, flex: 1, textAlign: 'center', letterSpacing: '0.04em' }}
+          style={{ ...btnBase, background: BLACK, color: '#FFFFFF', flex: 1, textAlign: 'center' }}
         >
           {isLast ? '✓ Build Menu' : 'Next →'}
         </button>
