@@ -216,6 +216,19 @@ function summarize(drivers, stops) {
   };
 }
 
+// Total order count for a date — includes Metrobi + DR Driver. The "8 orders
+// for tomorrow" the sales rep sees is everything they entered, not just the
+// plannable subset. The plan-vs-current comparison still uses this total
+// (Metrobi-only adds are harmless to re-plan since they get filtered out).
+async function countOrdersForDate(date) {
+  const { count, error } = await supabase
+    .from('orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('delivery_date', date);
+  if (error) return 0;
+  return count || 0;
+}
+
 export async function POST(request) {
   try {
     const { date, deliveryMethod = 'DR Catering Driver', useTolls = true } = await request.json();
@@ -231,6 +244,10 @@ export async function POST(request) {
 
     const stops = (orders || []).filter(o => (o.delivery_address || '').trim().length > 0);
 
+    // Snapshot of total orders at planning time (used by the warning banner
+    // when new orders show up later).
+    const ordersCountAtPlan = await countOrdersForDate(date);
+
     if (stops.length === 0) {
       return Response.json({
         drivers: [],
@@ -239,6 +256,7 @@ export async function POST(request) {
         totalMiles: 0,
         totalDriveMinutes: 0,
         mockMode: isMockMode(),
+        ordersCountAtPlan,
         message: 'No DR Catering Driver deliveries for this date.',
       });
     }
@@ -254,8 +272,10 @@ export async function POST(request) {
     const drivers = clusterStops(stops, matrix);
     const summary = summarize(drivers, stops);
 
-    // Persist the plan so the historical-averages widget can read it.
-    await supabase.from('daily_plans').insert([{
+    // Persist the plan so the historical-averages widget and the new-orders
+    // warning can read it later. orders_count_at_plan column may not exist on
+    // older databases — try with the column first, fall back without it.
+    const baseRow = {
       plan_date:           date,
       drivers_needed:      summary.driversNeeded,
       total_stops:         summary.totalStops,
@@ -263,15 +283,55 @@ export async function POST(request) {
       total_drive_minutes: summary.totalDriveMinutes,
       with_tolls_chosen:   useTolls,
       plan_data:           summary,
-    }]).then(() => null, () => null); // ignore insert failures (e.g. table not created yet)
+    };
+    const withCount = { ...baseRow, orders_count_at_plan: ordersCountAtPlan };
+    const { error: insErr } = await supabase.from('daily_plans').insert([withCount]);
+    if (insErr) {
+      // Column missing or table missing — try without the new column so the
+      // historical widget at least keeps working.
+      await supabase.from('daily_plans').insert([baseRow]).then(() => null, () => null);
+    }
 
-    return Response.json({ ...summary, mockMode: mock });
+    return Response.json({ ...summary, mockMode: mock, ordersCountAtPlan });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }
 }
 
-export async function GET() {
+// Look up the saved plan + current order count for a given date. Used by the
+// page on load (and after date changes) to decide whether to gate behind the
+// modal, show an existing plan, or surface the new-orders warning.
+async function getStatusForDate(date) {
+  const ordersCount = await countOrdersForDate(date);
+
+  const { data: plans } = await supabase
+    .from('daily_plans')
+    .select('*')
+    .eq('plan_date', date)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  const latest = plans?.[0] || null;
+  const savedPlan = latest?.plan_data
+    ? { ...latest.plan_data, mockMode: isMockMode() }
+    : null;
+  const ordersCountAtPlan = latest?.orders_count_at_plan ?? null;
+
+  return { date, ordersCount, savedPlan, ordersCountAtPlan };
+}
+
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const date = searchParams.get('date');
+
+  if (date) {
+    try {
+      return Response.json(await getStatusForDate(date));
+    } catch (err) {
+      return Response.json({ ordersCount: 0, savedPlan: null, ordersCountAtPlan: null, error: err.message });
+    }
+  }
+
   // Last-30-days averages for the historical widget.
   const since = new Date();
   since.setDate(since.getDate() - 30);
