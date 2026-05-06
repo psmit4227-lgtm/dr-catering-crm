@@ -15,14 +15,6 @@ const NOTE_BG  = [255, 252, 220];        // pale amber for kitchen notes
 const GOLD     = [201, 168, 76];         // #c9a84c — bullets, section underline, prep border
 const GOLD_DK  = [139, 105, 20];         // #8b6914 — modifier / inline prep text
 const PREP_BG  = [255, 248, 231];        // #fff8e7 — prep note box fill
-const ESPRESSO = [30, 16, 8];            // #1e1008 — delivery-order box border
-
-// Top-right "DELIVERY ORDER #" handwriting box. Logistics writes a route stop
-// number with a marker after printing; box must be readable on a stack of 10.
-const ORDER_BOX_W = 64;
-const ORDER_BOX_H = 38;
-const ORDER_BOX_X = PAGE_W - MARGIN - ORDER_BOX_W;
-const ORDER_BOX_Y = MARGIN;
 
 // Line height: font pt → mm, scaled by spacing factor
 const lh = (pt, sp) => pt * PT_TO_MM * sp;
@@ -31,6 +23,7 @@ const lh = (pt, sp) => pt * PT_TO_MM * sp;
 const getSizes = (r) => ({
   title:  Math.max(18, 28 - r),
   client: Math.max(14, 22 - r),
+  phone:  Math.max(11, Math.round((22 - r) * 0.75)),
   sect:   Math.max(12, 18 - r),
   body:   Math.max(10, 16 - r),
   menu:   Math.max(10, 16 - r),
@@ -89,55 +82,33 @@ function detectDressings(menuText) {
   return `Dressing - ${detected.map(d => `${d.size} ${d.name}`).join(" AND ")}`;
 }
 
-// ── Food-group categorization for auto-spacing ────────────────────────────────
-// Match priority differs from output order — multi-word phrases & specific
-// containers (wraps/sandwiches) win over generic single-word fallbacks
-// (e.g. "chicken caesar wrap" → Sandwiches, not Hot Food or Salads).
-const GROUP_KEYWORDS = {
-  Sandwiches: [/\bfocaccia\b/, /\bsandwich/, /\bwrap/, /\bhero\b/, /\bsub\b/, /\bpanini/, /\bbagel/, /\bcroissant/, /\bmuffin/, /\bdanish/],
-  ColdFood:   [/\bhummus\b/, /\bpita\b/, /\bolives?\b/, /\bcold\s+pasta\b/, /\bpotato\s+salad\b/, /\bfruit\s+salad\b/, /\bfresh\s+fruit\b/, /\btortilla\s+chips\b/, /\bchips\b/, /\bdip\b/, /\btatziki\b/, /\bguacamole\b/, /\bsalsa\b/, /\bsour\s+cream\b/, /\bcheese\s+platter\b/, /\bantipasto\b/],
-  Desserts:   [/\bcookies?\b/, /\bbrownies?\b/, /\btiramisu\b/, /\bcannoli\b/, /\bcakes?\b/, /\bfruit\s+platter\b/, /\bwatermelon\b/, /\byogurt\b/, /\bgranola\b/],
-  Salads:     [/\bsalads?\b/, /\bcaesar\b/, /\bceaser\b/, /\bmediterranean\b/, /\beliza\b/, /\bgarden\b/, /\bquinoa\b/, /\bcobb\b/, /\btossed\b/],
-  Sides:      [/\bcornbread\b/, /\bvegetables\b/, /\bbroccoli\b/, /\bbeans\b/, /\bcorn\b/, /\bmashed\b/, /\bspanakopita\b/, /\bfalafel\b/],
-  HotFood:    [/\bchicken\b/, /\bbeef\b/, /\bpork\b/, /\bribs\b/, /\beggplant\b/, /\bmarsala\b/, /\bparm\b/, /\bparmigiana\b/, /\bvodka\b/, /\balfredo\b/, /\bpasta\b/, /\bpenne\b/, /\bziti\b/, /\blasagna\b/, /\bmeatballs?\b/, /\bshrimp\b/, /\bsalmon\b/, /\bfish\b/, /\btray\b/, /\bhot\b/, /\bsoup\b/, /\brice\b/, /\bmac\b/, /\btacos?\b/, /\bburritos?\b/, /\bfries\b/, /\beggs\b/, /\bbacon\b/, /\bfrench\s+toast\b/, /\bsausage\b/, /\bskewers?\b/, /\bstir\s+fry\b/, /\bgarlic\s+bread\b/],
-};
-const MATCH_ORDER  = ["Sandwiches", "ColdFood", "Desserts", "Salads", "Sides", "HotFood"];
-const OUTPUT_ORDER = ["Salads", "ColdFood", "Sandwiches", "HotFood", "Uncategorized", "Sides", "Desserts"];
-
-function categorizeMenuItem(text) {
-  const t = (text || "").toLowerCase();
-  for (const group of MATCH_ORDER) {
-    for (const re of GROUP_KEYWORDS[group]) if (re.test(t)) return group;
-  }
-  return "Uncategorized";
-}
-
 function getMenuItems(order) {
   const raw = (order.order_details || "")
     .split("\n").map(l => l.replace(/\s+$/, ""));
+  // Strip user-entered Beverages / Paper boxes / Dressings — we always append
+  // these as defaults at the end, so dedupe whatever the sales guy typed.
   const filtered = raw.filter(
     l => !/^\s*•?\s*beverages?\s*$/i.test(l)
       && !/^\s*•?\s*paper\s+(?:boxes?|goods?)\s*$/i.test(l)
       && !/^\s*•?\s*dressings?\b/i.test(l)
   );
+  // Trim leading/trailing blank lines, but preserve any internal blank lines
+  // the sales guy entered — those are intentional manual spacing.
   const isBlank = l => /^\s*•?\s*$/.test(l);
   while (filtered.length && isBlank(filtered[0])) filtered.shift();
   while (filtered.length && isBlank(filtered[filtered.length - 1])) filtered.pop();
 
   const dressingLine = detectDressings(filtered.join("\n"));
 
-  // Group user items by food category and add blank-line separators.
-  const grouped = groupMenuItems(filtered);
-
-  // Dressings always appears as a default — specific (e.g. "Dressing - Small
-  // Caesar AND Large House") when a salad is detected, otherwise the generic
-  // "Dressings" line so the kitchen still has a slot to fill in.
+  // Items render in the EXACT order entered — no reordering, no auto-grouping.
+  // Defaults (dressings + beverages + paper) get appended at the end so the
+  // kitchen always has a slot to fill in.
   const tail = [];
   tail.push(`• ${dressingLine || "Dressings"}`);
   tail.push("• Beverages", "• Paper boxes");
 
-  const result = [...grouped];
-  if (grouped.length > 0) result.push(""); // blank line above defaults
+  const result = [...filtered];
+  if (filtered.length > 0) result.push(""); // blank line above defaults
   result.push(...tail);
   return result;
 }
@@ -201,67 +172,12 @@ function parseMenuLine(rawLine) {
   return { type: isSub ? "sub" : "item", quantity, text: mainText, modifier, inlinePrep };
 }
 
-// Group menu lines by food category. Sub-items / prep notes / inline modifiers
-// stay attached to their parent item. Section headers (lines ending ":") are
-// treated as user-curated structure — when present, items keep their original
-// order. Otherwise items are sorted into OUTPUT_ORDER. A blank line is inserted
-// between blocks of different categories so the kitchen has writing room.
-function groupMenuItems(items) {
-  const blocks = [];
-  let current = null;
-  let hasSection = false;
-
-  const orderIdxOf = (cat) => {
-    const i = OUTPUT_ORDER.indexOf(cat);
-    return i === -1 ? OUTPUT_ORDER.indexOf("Uncategorized") : i;
-  };
-
-  for (const line of items) {
-    const parsed = parseMenuLine(line);
-    if (parsed.type === "blank") continue; // dropped — auto-blanks regenerated below
-    if (parsed.type === "section") {
-      hasSection = true;
-      blocks.push({ lines: [line], category: `_section_${blocks.length}`, sortKey: blocks.length + 1000 });
-      current = null;
-      continue;
-    }
-    if (parsed.type === "item") {
-      const cat = categorizeMenuItem(line);
-      current = { lines: [line], category: cat, sortKey: orderIdxOf(cat) };
-      blocks.push(current);
-      continue;
-    }
-    // sub or prep — attach to the most recent item block
-    if (current) {
-      current.lines.push(line);
-    } else {
-      const cat = categorizeMenuItem(line);
-      current = { lines: [line], category: cat, sortKey: orderIdxOf(cat) };
-      blocks.push(current);
-    }
-  }
-
-  if (!hasSection) {
-    blocks.forEach((b, i) => { b.origIdx = i; });
-    blocks.sort((a, b) => a.sortKey !== b.sortKey ? a.sortKey - b.sortKey : a.origIdx - b.origIdx);
-  }
-
-  const out = [];
-  let prevCat = null;
-  for (const b of blocks) {
-    if (prevCat !== null && b.category !== prevCat) out.push("");
-    for (const line of b.lines) out.push(line);
-    prevCat = b.category;
-  }
-  return out;
-}
-
 // Process (measure or render) a parsed menu line. Returns vertical advance in mm.
 // mode: "measure" or "render".
 function processMenuLine(doc, parsed, y, S, SP, mode, isFirst) {
   if (parsed.type === "blank") {
-    // ~1.5x line-height of vertical space — gives the kitchen room to handwrite
-    // notes between food groups. Auto-fit will shrink fonts if it overflows.
+    // ~1.5x line-height — gives room for kitchen handwriting on intentional
+    // gaps the sales guy entered. Auto-fit will shrink fonts if needed.
     return Math.max(2, lh(S.menu, SP) * 1.5);
   }
 
@@ -420,11 +336,17 @@ function formatGuestBreakdown(order) {
   return normalized;
 }
 
+function isGuestCountMissing(order) {
+  const v = order.guest_count;
+  if (v === null || v === undefined) return true;
+  const s = String(v).trim();
+  return s === "" || s === "0";
+}
+
 // Measure total layout height for given sizes + spacing.
 // Sets jsPDF font state as a side-effect (safe before rendering).
 function measureLayout(doc, order, s, sp) {
   const menuItems = getMenuItems(order);
-  const showOrderBox = order.delivery_method !== "Metrobi";
   let h = 0;
 
   // Title
@@ -435,35 +357,52 @@ function measureLayout(doc, order, s, sp) {
   h += 1.5 + 3;
   // Client name
   h += lh(s.client, sp) + 1;
-  // Phone
-  h += lh(s.label, sp) + 3;
-  // Reserve enough vertical space for the top-right delivery-order box —
-  // box height is fixed regardless of font reduction, so the header section
-  // must consume at least ORDER_BOX_H + a small gap before continuing.
-  // Skipped for Metrobi orders, where the box is hidden and the space is
-  // reclaimed by the rest of the layout.
-  if (showOrderBox) h = Math.max(h, ORDER_BOX_H + 2);
+  // Phone (bigger, bold)
+  h += lh(s.phone, sp) + 3;
   // Rule 2 + gap
   h += 1.5 + 3;
   // Date/time labels + values
   h += lh(s.label, sp) + 1;
   h += lh(s.body, sp)  + 3;
-  // Guest count label + HUGE value + optional breakdown
+  // Guest count label + value (huge number OR "Not provided" small italic)
   h += lh(s.label, sp) + 1;
-  h += lh(guestPt(s.body), sp) + 2;
-  const bd = formatGuestBreakdown(order);
-  if (bd) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(s.notes);
-    const bdLines = doc.splitTextToSize(bd, CW - 4);
-    h += bdLines.length * lh(s.notes, sp) + 3;
+  if (isGuestCountMissing(order)) {
+    h += lh(s.notes, sp) + 4;
   } else {
-    h += 4;
+    h += lh(guestPt(s.body), sp) + 2;
+    const bd = formatGuestBreakdown(order);
+    if (bd) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(s.notes);
+      const bdLines = doc.splitTextToSize(bd, CW - 4);
+      h += bdLines.length * lh(s.notes, sp) + 3;
+    } else {
+      h += 4;
+    }
   }
   // Rule 3 (heavy) + gap
   h += 1.5 + 4;
 
-  // ── Metadata block (now ABOVE the menu) ──
+  // MENU heading
+  h += lh(s.sect, sp) + 2;
+
+  // Menu items (rich formatting)
+  let firstNonBlank = true;
+  for (const item of menuItems) {
+    const parsed = parseMenuLine(item);
+    if (parsed.type === "blank") {
+      if (!firstNonBlank) h += processMenuLine(doc, parsed, h, s, sp, "measure", false);
+      continue;
+    }
+    h += processMenuLine(doc, parsed, h, s, sp, "measure", firstNonBlank);
+    firstNonBlank = false;
+  }
+  h += 3;
+
+  // Divider before metadata block
+  h += 1.5 + 4;
+
+  // ── Metadata block (BELOW the menu) ──
   // Address / contact labels + values
   h += lh(s.label, sp) + 1;
   doc.setFont("helvetica", "normal");
@@ -496,25 +435,6 @@ function measureLayout(doc, order, s, sp) {
     h += lh(s.label, sp) + 1;
     h += lh(s.body, sp) + 6;
   }
-
-  // Divider before menu
-  h += 1.5 + 4;
-
-  // MENU heading
-  h += lh(s.sect, sp) + 2;
-
-  // Menu items (rich formatting)
-  let firstNonBlank = true;
-  for (const item of menuItems) {
-    const parsed = parseMenuLine(item);
-    if (parsed.type === "blank") {
-      if (!firstNonBlank) h += processMenuLine(doc, parsed, h, s, sp, "measure", false);
-      continue;
-    }
-    h += processMenuLine(doc, parsed, h, s, sp, "measure", firstNonBlank);
-    firstNonBlank = false;
-  }
-  h += 3;
 
   // Footer: rule + gap + text
   h += 1.5 + 2;
@@ -561,65 +481,27 @@ function buildPDF(order) {
 
   // ── Render ───────────────────────────────────────────────────────────────
 
-  // 0. Top-right "DELIVERY ORDER #" handwriting box (drawn first so the
-  //    surrounding header text is centered into the LEFT zone beside it).
-  //    Hidden for Metrobi orders — Metrobi handles their own routing, so the
-  //    box has no purpose and the space is reclaimed by full-width header text.
-  const showOrderBox = order.delivery_method !== "Metrobi";
-  if (showOrderBox) {
-    doc.setDrawColor(...ESPRESSO);
-    doc.setLineWidth(0.7);
-    doc.setFillColor(255, 255, 255);
-    doc.roundedRect(ORDER_BOX_X, ORDER_BOX_Y, ORDER_BOX_W, ORDER_BOX_H, 3, 3, "FD");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(Math.max(7, S.label + 2));
-    doc.setTextColor(...GOLD_DK);
-    doc.text(
-      "DELIVERY ORDER #",
-      ORDER_BOX_X + ORDER_BOX_W / 2,
-      ORDER_BOX_Y + 4,
-      { align: "center", baseline: "top" }
-    );
-  }
-
-  // Header text centers in the LEFT zone (margin → box left edge) when the
-  // box is shown, or across the full page when hidden.
-  const leftCX = showOrderBox ? (MARGIN + ORDER_BOX_X) / 2 : CX;
-
   // 1. Title
   setFont("bold", S.title);
-  doc.text("Event Menu", leftCX, y, { align: "center", baseline: "top" });
+  doc.text("Event Menu", CX, y, { align: "center", baseline: "top" });
   y += lh(S.title, SP) + 1.5;
 
   // 2. Order number
   setFont("normal", S.label, GRAY);
-  doc.text(order.order_number || "DRC-0000", leftCX, y, { align: "center", baseline: "top" });
+  doc.text(order.order_number || "DRC-0000", CX, y, { align: "center", baseline: "top" });
   y += lh(S.label, SP) + 3;
 
-  // First rule sits inside the box's vertical span when the box is shown —
-  // shorten it to stop before the box so the line doesn't cross the corner.
-  // Full-width when the box is hidden (Metrobi).
-  if (showOrderBox) {
-    rule(0.4, MARGIN, ORDER_BOX_X - 2);
-  } else {
-    rule(0.4);
-  }
-  y += 3;
+  rule(); y += 3;
 
   // 3. Client name
   setFont("bold", S.client);
-  doc.text(order.client_name || "—", leftCX, y, { align: "center", baseline: "top" });
+  doc.text(order.client_name || "—", CX, y, { align: "center", baseline: "top" });
   y += lh(S.client, SP) + 1;
 
-  // 4. Phone
-  setFont("normal", S.label, GRAY);
-  doc.text(order.client_phone || "—", leftCX, y, { align: "center", baseline: "top" });
-  y += lh(S.label, SP) + 3;
-
-  // Ensure the next rule + date row start below the box bottom, regardless
-  // of how much font reduction has been applied. Skipped when the box is
-  // hidden so other content can reclaim the space.
-  if (showOrderBox) y = Math.max(y, ORDER_BOX_Y + ORDER_BOX_H + 2);
+  // 4. Phone — bigger and bolder so it's actually readable on a printed page
+  setFont("bold", S.phone);
+  doc.text(order.client_phone || "—", CX, y, { align: "center", baseline: "top" });
+  y += lh(S.phone, SP) + 3;
 
   rule(); y += 3;
 
@@ -640,28 +522,57 @@ function buildPDF(order) {
   doc.text(formatTime(order.delivery_time),  col3, y, { baseline: "top" });
   y += lh(S.body, SP) + 3;
 
-  // 6. Guest count — centered and HUGE + optional breakdown
+  // 6. Guest count — big number, or "Not provided" muted italic when missing
   setFont("normal", S.label, GRAY);
   doc.text("NUMBER OF GUESTS", CX, y, { align: "center", baseline: "top" });
   y += lh(S.label, SP) + 1;
 
-  setFont("bold", GP);
-  doc.text(String(order.guest_count || "—"), CX, y, { align: "center", baseline: "top" });
-  y += lh(GP, SP) + 2;
-
-  const guestBreakdown = formatGuestBreakdown(order);
-  if (guestBreakdown) {
-    setFont("normal", S.notes, GRAY);
-    const bdLines = doc.splitTextToSize(guestBreakdown, CW - 4);
-    doc.text(bdLines, CX, y, { align: "center", baseline: "top" });
-    y += bdLines.length * lh(S.notes, SP) + 3;
+  if (isGuestCountMissing(order)) {
+    setFont("italic", S.notes, GRAY);
+    doc.text("Not provided", CX, y, { align: "center", baseline: "top" });
+    y += lh(S.notes, SP) + 4;
   } else {
-    y += 4;
+    setFont("bold", GP);
+    doc.text(String(order.guest_count), CX, y, { align: "center", baseline: "top" });
+    y += lh(GP, SP) + 2;
+
+    const guestBreakdown = formatGuestBreakdown(order);
+    if (guestBreakdown) {
+      setFont("normal", S.notes, GRAY);
+      const bdLines = doc.splitTextToSize(guestBreakdown, CW - 4);
+      doc.text(bdLines, CX, y, { align: "center", baseline: "top" });
+      y += bdLines.length * lh(S.notes, SP) + 3;
+    } else {
+      y += 4;
+    }
   }
 
   rule(0.7); y += 4;
 
-  // 7. Delivery address | Point of contact (moved up)
+  // 7. Menu heading
+  setFont("bold", S.sect);
+  doc.text("MENU", CX, y, { align: "center", baseline: "top" });
+  y += lh(S.sect, SP) + 2;
+
+  // 8. Menu items — rendered in the exact order the sales guy entered them.
+  // Manual blank lines preserved as vertical breathing room. Defaults
+  // (dressings + beverages + paper) appended at the end inside getMenuItems.
+  let firstNonBlank = true;
+  for (const item of menuItems) {
+    const parsed = parseMenuLine(item);
+    if (parsed.type === "blank") {
+      if (!firstNonBlank) y += processMenuLine(doc, parsed, y, S, SP, "render", false);
+      continue;
+    }
+    y += processMenuLine(doc, parsed, y, S, SP, "render", firstNonBlank);
+    firstNonBlank = false;
+  }
+  y += 3;
+
+  // 9. Divider before metadata block
+  rule(0.3); y += 4;
+
+  // 10. Delivery address | Point of contact
   setFont("normal", S.label, GRAY);
   doc.text("DELIVERY ADDRESS",  MARGIN,          y, { baseline: "top" });
   doc.text("POINT OF CONTACT",  PAGE_W / 2 + 4,  y, { baseline: "top" });
@@ -675,7 +586,7 @@ function buildPDF(order) {
   doc.text(ctLines,   PAGE_W / 2 + 4, y, { baseline: "top" });
   y += Math.max(addrLines.length, ctLines.length) * lh(S.body, SP) + 3;
 
-  // 8. Kitchen notes (moved up — yellow highlight)
+  // 11. Kitchen notes (yellow highlight)
   if (order.kitchen_notes?.trim()) {
     setFont("bold", S.label, GRAY);
     doc.text("ADDITIONAL NOTES FOR KITCHEN", MARGIN, y, { baseline: "top" });
@@ -691,7 +602,7 @@ function buildPDF(order) {
     y += boxH + 2 + 3;
   }
 
-  // 9. Driver notes (moved up — yellow highlight)
+  // 12. Driver notes (yellow highlight)
   if (order.notes?.trim()) {
     setFont("bold", S.label, GRAY);
     doc.text("SPECIAL INSTRUCTIONS FOR DRIVER", MARGIN, y, { baseline: "top" });
@@ -707,7 +618,7 @@ function buildPDF(order) {
     y += boxH + 2 + 3;
   }
 
-  // 10. Delivery method badge (moved up)
+  // 13. Delivery method badge
   if (order.delivery_method) {
     setFont("normal", S.label, GRAY);
     doc.text("DELIVERY METHOD", MARGIN, y, { baseline: "top" });
@@ -725,27 +636,6 @@ function buildPDF(order) {
     doc.text(badgeText, MARGIN + 8, y + badgeH / 2, { baseline: "middle" });
     y += badgeH + 4;
   }
-
-  // 11. Divider before menu
-  rule(0.3); y += 4;
-
-  // 12. Menu heading
-  setFont("bold", S.sect);
-  doc.text("MENU", CX, y, { align: "center", baseline: "top" });
-  y += lh(S.sect, SP) + 2;
-
-  // 13. Menu items (rich formatting: sections, sub-items, prep notes, quantity bolding)
-  let firstNonBlank = true;
-  for (const item of menuItems) {
-    const parsed = parseMenuLine(item);
-    if (parsed.type === "blank") {
-      if (!firstNonBlank) y += processMenuLine(doc, parsed, y, S, SP, "render", false);
-      continue;
-    }
-    y += processMenuLine(doc, parsed, y, S, SP, "render", firstNonBlank);
-    firstNonBlank = false;
-  }
-  y += 3;
 
   // 14. Footer
   rule(0.3); y += 2;
