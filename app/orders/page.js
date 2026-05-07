@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Navigation from '../components/Navigation';
 
 const supabase = createClient(
@@ -31,6 +32,16 @@ function fmtTime(t) {
   const [h, m] = t.split(':');
   const hr = parseInt(h);
   return `${hr % 12 || 12}:${m}${hr >= 12 ? 'pm' : 'am'}`;
+}
+
+function fmtUpdated(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return '';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const hr = d.getHours();
+  const mins = String(d.getMinutes()).padStart(2, '0');
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} · ${hr % 12 || 12}:${mins}${hr >= 12 ? 'pm' : 'am'}`;
 }
 
 export default function OrdersPage() {
@@ -171,6 +182,13 @@ export default function OrdersPage() {
                           <div style={{ fontSize:10, fontWeight:700, color: GOLD, fontFamily:FONT, textTransform:'uppercase', letterSpacing:'0.06em' }}>Guests</div>
                           <div style={{ fontSize:13, fontWeight:600, color: ESPRESSO, fontFamily:FONT }}>{order.guest_count || '—'}</div>
                         </div>
+                        <Link
+                          href={`/orders/${order.id}/edit`}
+                          onClick={e => e.stopPropagation()}
+                          style={{ fontSize:12, color:NAVY, fontFamily:FONT, fontWeight:600, textDecoration:'none', padding:'4px 10px', borderRadius:6, border:`1px solid ${BORDER}`, flexShrink:0 }}
+                        >
+                          Edit
+                        </Link>
                         <div style={{ fontSize:13, color: NAVY, fontFamily:FONT, flexShrink:0 }}>{isOpen ? '▲' : '▼'}</div>
                       </div>
                     </div>
@@ -225,6 +243,12 @@ export default function OrdersPage() {
                           </div>
                         )}
 
+                      </div>
+                    )}
+
+                    {order.updated_at && (
+                      <div style={{ padding:'8px 18px 10px', fontSize:11, color: TEXT_SEC, fontFamily:FONT, borderTop: isOpen ? 'none' : `1px solid ${BORDER}` }}>
+                        Last updated: {fmtUpdated(order.updated_at)}
                       </div>
                     )}
                   </div>

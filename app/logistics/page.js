@@ -80,18 +80,38 @@ export default function LogisticsPage() {
       if (!session) { router.replace('/'); return; }
       setScreen('app');
       fetchAverages();
+      // If we just came back from editing a broken order, re-run planning so the
+      // banner clears (or shows whatever's still broken). The flag is set by the
+      // edit page's save handler.
+      let shouldReplan = false;
+      try {
+        if (sessionStorage.getItem('logistics_replan') === '1') {
+          sessionStorage.removeItem('logistics_replan');
+          shouldReplan = true;
+        }
+      } catch {}
+
       // Initial gate decision: if a saved plan already exists for the default
       // date, skip the modal and show that plan directly. Otherwise gate.
-      const status = await fetchStatus(localDateStr(1));
+      const initialDate = localDateStr(1);
+      const status = await fetchStatus(initialDate);
       if (status?.savedPlan) {
         setPlan(status.savedPlan);
         setOrdersCountAtPlan(status.ordersCountAtPlan);
         setOrdersCount(status.ordersCount);
         setGate('planner');
+        if (shouldReplan) planDay(undefined, initialDate);
       } else {
         setOrdersCount(status?.ordersCount ?? 0);
         setModalOrdersCount(status?.ordersCount ?? 0);
-        setGate('modal');
+        if (shouldReplan) {
+          // Skip the modal — plan immediately so the banner reflects the latest state.
+          setPlanDate(initialDate);
+          setGate('planner');
+          planDay(undefined, initialDate);
+        } else {
+          setGate('modal');
+        }
       }
     });
   }, []);
@@ -657,36 +677,39 @@ function BrokenOrdersBanner({ brokenOrders }) {
       <div style={{ fontSize: 15, fontWeight: 700, color: '#8b1e1e', marginBottom: 10 }}>
         🚫 Cannot plan day — fix these orders first:
       </div>
-      <ul style={{ margin: '0 0 14px', paddingLeft: 22, fontSize: 13.5, lineHeight: 1.55 }}>
+      <ul style={{ margin: '0', paddingLeft: 22, fontSize: 13.5, lineHeight: 1.55 }}>
         {brokenOrders.map((bo, i) => (
-          <li key={i} style={{ marginBottom: 4 }}>
-            <span style={{ fontWeight: 700 }}>{bo.orderNumber}</span>
-            {bo.clientName && bo.clientName !== '—' && (
-              <span style={{ color: '#7a3a3a' }}> ({bo.clientName})</span>
+          <li key={i} style={{ marginBottom: 6, display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 8 }}>
+            <span>
+              <span style={{ fontWeight: 700 }}>{bo.orderNumber}</span>
+              {bo.clientName && bo.clientName !== '—' && (
+                <span style={{ color: '#7a3a3a' }}> ({bo.clientName})</span>
+              )}
+              {' — '}
+              {bo.reasons.join('; ')}
+            </span>
+            {bo.id && (
+              <a
+                href={`/orders/${bo.id}/edit`}
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  color: NAVY,
+                  textDecoration: 'none',
+                  background: '#fff',
+                  border: `1px solid ${NAVY}`,
+                  borderRadius: 6,
+                  padding: '2px 10px',
+                  fontFamily: FONT,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Edit →
+              </a>
             )}
-            {' — '}
-            {bo.reasons.join('; ')}
           </li>
         ))}
       </ul>
-      <a
-        href="/orders"
-        style={{
-          display: 'inline-block',
-          background: NAVY,
-          color: '#FFFFFF',
-          border: 'none',
-          borderRadius: 10,
-          padding: '8px 18px',
-          fontSize: 13,
-          fontWeight: 700,
-          fontFamily: FONT,
-          textDecoration: 'none',
-          letterSpacing: '0.04em',
-        }}
-      >
-        Open Order History
-      </a>
     </div>
   );
 }

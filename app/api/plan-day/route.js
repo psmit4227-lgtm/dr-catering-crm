@@ -58,6 +58,7 @@ function validateOrders(orders) {
     }
     if (reasons.length) {
       brokenOrders.push({
+        id:          o.id,
         orderNumber: o.order_number || o.id,
         clientName:  o.client_name || '—',
         reasons,
