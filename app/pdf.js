@@ -430,12 +430,6 @@ function measureLayout(doc, order, s, sp) {
     h += dl.length * lh(s.notes, sp) + 4 + 2 + 3;
   }
 
-  // Delivery method badge (optional)
-  if (order.delivery_method) {
-    h += lh(s.label, sp) + 1;
-    h += lh(s.body, sp) + 6;
-  }
-
   // Footer: rule + gap + text
   h += 1.5 + 2;
   h += lh(s.footer, sp);
@@ -618,26 +612,7 @@ function buildPDF(order) {
     y += boxH + 2 + 3;
   }
 
-  // 13. Delivery method badge
-  if (order.delivery_method) {
-    setFont("normal", S.label, GRAY);
-    doc.text("DELIVERY METHOD", MARGIN, y, { baseline: "top" });
-    y += lh(S.label, SP) + 1;
-
-    const badgeText = order.delivery_method === "Metrobi" ? "DELIVERY: Metrobi" : "DELIVERY: DR Catering Driver";
-    setFont("bold", S.body);
-    const badgeW  = doc.getTextWidth(badgeText) + 16;
-    const badgeH  = lh(S.body, SP) + 4;
-    doc.setFillColor(255, 248, 231);
-    doc.setDrawColor(201, 168, 76);
-    doc.setLineWidth(0.5);
-    doc.roundedRect(MARGIN, y, badgeW, badgeH, 2, 2, "FD");
-    doc.setTextColor(...BLACK);
-    doc.text(badgeText, MARGIN + 8, y + badgeH / 2, { baseline: "middle" });
-    y += badgeH + 4;
-  }
-
-  // 14. Footer
+  // 13. Footer
   rule(0.3); y += 2;
   const today = new Date().toLocaleDateString("en-US", {
     year: "numeric", month: "long", day: "numeric",

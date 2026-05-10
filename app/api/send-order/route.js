@@ -26,19 +26,14 @@ export async function POST(request) {
       }
     }
 
-    const isMetrobi = order.delivery_method === 'Metrobi';
-    const prefix    = isMetrobi ? '[METROBI]' : '[DR CATERING]';
     const dateLabel = order.delivery_date || order.order_number;
 
     const { error } = await resend.emails.send({
       from: 'DR Catering <onboarding@resend.dev>',
       to: 'domrizz@gmail.com',
-      subject: `${prefix} New Order - ${order.client_name} - ${dateLabel}`,
+      subject: `[NEW ORDER] ${order.client_name} - ${dateLabel}`,
       html: `
         <h2 style="font-family:Arial">New Order — ${order.order_number}</h2>
-        <p style="font-family:Arial;font-size:15px;font-weight:bold;margin:8px 0;">
-          Delivery: <span style="background:${isMetrobi ? '#5C6478' : '#1B2845'};color:#fff;padding:3px 10px;border-radius:4px;">${order.delivery_method || 'DR Catering Driver'}</span>
-        </p>
         <p style="font-family:Arial;font-size:14px">Order for ${order.client_name} — see attached PDF for details.</p>
       `,
       ...(attachments.length > 0 && { attachments }),

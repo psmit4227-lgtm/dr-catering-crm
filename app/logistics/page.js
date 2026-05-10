@@ -163,7 +163,6 @@ export default function LogisticsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           date: targetDate,
-          deliveryMethod: 'DR Catering Driver',
           useTolls: typeof tollsOverride === 'boolean' ? tollsOverride : useTolls,
         }),
       });
@@ -253,7 +252,7 @@ export default function LogisticsPage() {
             Logistics
           </div>
           <div style={{ fontSize: 14, color: TEXT_SEC, marginBottom: 24 }}>
-            Plan your day. Pulls all DR Catering Driver deliveries and clusters them into routes.
+            Plan your day. Pulls all deliveries for the date and clusters them into routes.
           </div>
 
           {gate === 'waiting' ? (
@@ -347,7 +346,7 @@ export default function LogisticsPage() {
 
               {plan && plan.totalStops === 0 && !brokenOrders && (
                 <div style={{ background: '#fff', borderRadius: 16, border: `1px solid ${BORDER}`, padding: 28, textAlign: 'center', color: TEXT_SEC, fontSize: 14, marginTop: 12 }}>
-                  {plan.message || 'No DR Catering Driver deliveries for this date.'}
+                  {plan.message || 'No deliveries for this date.'}
                 </div>
               )}
 

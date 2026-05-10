@@ -395,7 +395,6 @@ export default function OrderForm({ mode = 'new', initialOrder = null, onCancel 
           ff('menu_package', match.dropdownValue);
         }
       }
-      if (p.deliveryMethod) ff('delivery_method', p.deliveryMethod);
     } catch (err) {
       setSmartFillError(err.message || 'Could not parse response. Please try again.');
     }
@@ -629,7 +628,6 @@ export default function OrderForm({ mode = 'new', initialOrder = null, onCancel 
     if (!form.delivery_time) missing.push('time there');
     if (!form.guest_count) missing.push('guest count');
     if (!form.order_details || form.order_details === '• ') missing.push('menu');
-    if (!form.delivery_method) missing.push('delivery method');
     if (form.event_type === 'Other' && !form.event_type_other) missing.push('event type detail');
     return missing;
   }
@@ -642,14 +640,15 @@ export default function OrderForm({ mode = 'new', initialOrder = null, onCancel 
     if (!form.on_site_phone) { alert('Please enter on-site contact phone number'); return; }
     if (!form.order_details || form.order_details === '• ') { alert('Please enter the menu'); return; }
     if (form.event_type === 'Other' && !form.event_type_other) { alert('Please specify the event type'); return; }
-    if (!form.delivery_method) { alert('Please select a delivery method'); return; }
     if (timesInvalid(form.time_out, form.delivery_time)) {
       alert("Time There must be after Time Out. Driver can't arrive before leaving.");
       return;
     }
     setSaving(true);
     const finalEventType = form.event_type === 'Other' ? `Other: ${form.event_type_other}` : form.event_type;
-    const orderToSave = { ...form, event_type: finalEventType };
+    // All orders are DR Catering Driver — Metrobi has been retired. Hardcode
+    // on submit so the column stays populated for historical consistency.
+    const orderToSave = { ...form, event_type: finalEventType, delivery_method: 'DR Catering Driver' };
 
     if (isEdit) {
       // Update only — no PDF regeneration, no email. Sales rep is responsible
@@ -1107,39 +1106,7 @@ export default function OrderForm({ mode = 'new', initialOrder = null, onCancel 
           <textarea style={{...inputStyle, height:'80px', resize:'none'}} placeholder="Allergy notes, substitutions, prep instructions..." value={form.kitchen_notes} onChange={e => ff('kitchen_notes', e.target.value)}/>
         </div>
 
-        {sectionDivider(<span>Delivery Method <span style={required}>*</span></span>)}
-
-        <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:'14px', marginBottom:'18px'}}>
-          {[
-            { method: 'DR Catering Driver', icon: '🏠' },
-            { method: 'Metrobi',             icon: '🚚' },
-          ].map(({ method, icon }) => {
-            const sel = form.delivery_method === method;
-            return (
-              <button
-                key={method}
-                type="button"
-                onClick={() => ff('delivery_method', method)}
-                style={{
-                  display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-                  gap:'10px', padding:'22px 16px',
-                  border: sel ? `2px solid ${NAVY}` : `1px solid ${BORDER}`,
-                  borderRadius:'8px',
-                  background: sel ? NAVY_SOFT : '#FFFFFF',
-                  cursor:'pointer',
-                  transition:'border 0.15s, background 0.15s',
-                }}
-              >
-                <span style={{fontSize:'30px', lineHeight:1}}>{icon}</span>
-                <span style={{fontSize:'14px', fontWeight: sel ? '700' : '500', color:NAVY, fontFamily: font}}>
-                  {method}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div style={{fontSize:'11px', color:'#9CA3AF', marginBottom:'16px', fontFamily:font}}><span style={required}>*</span> Required fields</div>
+        <div style={{fontSize:'11px', color:'#9CA3AF', marginTop:'24px', marginBottom:'16px', fontFamily:font}}><span style={required}>*</span> Required fields</div>
 
         {/* Edit mode shows two buttons (Save Changes + Cancel); new mode shows one. */}
         {isEdit ? (

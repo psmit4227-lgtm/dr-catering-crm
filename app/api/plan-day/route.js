@@ -253,10 +253,6 @@ function summarize(drivers, stops, kitchenMilesByStopIdx) {
   };
 }
 
-// Total order count for a date — includes Metrobi + DR Driver. The "8 orders
-// for tomorrow" the sales rep sees is everything they entered, not just the
-// plannable subset. The plan-vs-current comparison still uses this total
-// (Metrobi-only adds are harmless to re-plan since they get filtered out).
 async function countOrdersForDate(date) {
   const { count, error } = await supabase
     .from('orders')
@@ -268,14 +264,14 @@ async function countOrdersForDate(date) {
 
 export async function POST(request) {
   try {
-    const { date, deliveryMethod = 'DR Catering Driver', useTolls = true } = await request.json();
+    const { date, useTolls = true } = await request.json();
     if (!date) return Response.json({ error: 'Missing date' }, { status: 400 });
 
+    // All orders are DR Catering deliveries — no third-party filter.
     const { data: orders, error } = await supabase
       .from('orders')
       .select('*')
-      .eq('delivery_date', date)
-      .eq('delivery_method', deliveryMethod);
+      .eq('delivery_date', date);
 
     if (error) return Response.json({ error: error.message }, { status: 500 });
 
@@ -291,7 +287,7 @@ export async function POST(request) {
         totalDriveMinutes: 0,
         mockMode: isMockMode(),
         ordersCountAtPlan,
-        message: 'No DR Catering Driver deliveries for this date.',
+        message: 'No deliveries for this date.',
       });
     }
 
