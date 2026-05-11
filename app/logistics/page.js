@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import Navigation from '../components/Navigation';
 import { downloadDriverSheetsPDF } from '../driver-pdf';
+import { downloadRosterPDF } from '../roster-pdf';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -197,6 +198,26 @@ export default function LogisticsPage() {
     setExpanded(prev => ({ ...prev, [k]: !prev[k] }));
   }
 
+  // Pull all orders for the active plan date and hand them to the roster PDF.
+  // No filtering: roster is Dom's master overview for the day, broken orders
+  // and all.
+  const [rosterBusy, setRosterBusy] = useState(false);
+  async function printRoster() {
+    if (rosterBusy) return;
+    setRosterBusy(true);
+    try {
+      const { data, error: dbErr } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('delivery_date', planDate);
+      if (dbErr) { alert('Could not load orders: ' + dbErr.message); return; }
+      if (!data || data.length === 0) { alert('No orders to roster yet.'); return; }
+      downloadRosterPDF(data, planDate);
+    } finally {
+      setRosterBusy(false);
+    }
+  }
+
   // Modal answers
   async function handleModalYes() {
     setPlanDate(modalDate);
@@ -385,8 +406,25 @@ export default function LogisticsPage() {
                     ))}
                   </div>
 
-                  {/* Section 5 — Print Driver Sheets */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 36 }}>
+                  {/* Section 5 — Print Driver Sheets + Print Roster */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 36, flexWrap: 'wrap' }}>
+                    <button
+                      onClick={printRoster}
+                      disabled={rosterBusy || !ordersCount}
+                      title={!ordersCount ? 'No orders to roster yet' : undefined}
+                      style={{
+                        background: (rosterBusy || !ordersCount) ? '#9CA3AF' : NAVY,
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '12px 22px',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        cursor: (rosterBusy || !ordersCount) ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {rosterBusy ? 'Generating…' : '🗒️ Print Roster'}
+                    </button>
                     <button
                       onClick={() => downloadDriverSheetsPDF(plan, planDate, plan.mockMode)}
                       style={{
