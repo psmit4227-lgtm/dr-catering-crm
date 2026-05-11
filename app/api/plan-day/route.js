@@ -141,14 +141,33 @@ async function kitchenLegMiles(stops, useTolls) {
   }
 }
 
-// New clustering: trust the order-supplied times. Sort by time_out (driver
-// leaves earliest first), greedily fit each new stop onto an existing driver
-// if there's enough drive time between previous stop's leave and new stop's
-// time_there (with a 10-min early-arrival target). Else open a new driver.
-function clusterStops(stops, matrix) {
+// Internal meal-bucket classifier (silent — never exposed to UI or PDFs).
+// The kitchen prepares food in waves, so a driver can chain stops within a
+// bucket but never carry breakfast + lunch + dinner together.
+//   Breakfast: time_there <  10:00 AM  (< 600 minutes)
+//   Lunch:     10:00 AM <= time_there <  2:00 PM  (600–839)
+//   Dinner:    time_there >= 2:00 PM   (>= 840)
+function mealBucket(timeThereStr) {
+  const m = timeToMinutes(timeThereStr);
+  if (m == null) return 'lunch'; // unreachable after broken-orders validation; default safely
+  if (m < 10 * 60) return 'breakfast';
+  if (m < 14 * 60) return 'lunch';
+  return 'dinner';
+}
+
+// Greedy clustering for a subset of stop indexes. Same chaining rules as
+// before — the bucket separation happens at the call site, by passing only
+// the indexes belonging to a single meal bucket.
+//
+// Sort by time_out (driver leaves earliest first), greedily fit each new
+// stop onto an existing driver if there's enough drive time between
+// previous stop's leave and new stop's time_there (10-min early-arrival
+// target). Else open a new driver.
+function clusterStops(stops, matrix, indexes) {
+  const idxList = indexes || stops.map((_, i) => i);
   const drivers = [];
 
-  const sortedOrder = [...stops.map((_, i) => i)].sort((a, b) => {
+  const sortedOrder = [...idxList].sort((a, b) => {
     const ta = timeToMinutes(stops[a].time_out) ?? 24 * 60;
     const tb = timeToMinutes(stops[b].time_out) ?? 24 * 60;
     return ta - tb;
@@ -315,7 +334,19 @@ export async function POST(request) {
     const kitchenMiles = await kitchenLegMiles(plannable, useTolls);
     const kitchenMilesByIdx = plannable.map((_, i) => kitchenMiles[i]);
 
-    const drivers = clusterStops(plannable, matrix);
+    // Internal meal-bucket separation: a driver can chain within breakfast,
+    // lunch, or dinner — but never across buckets. The frontend never sees
+    // the bucket; we just run the existing clustering three times and
+    // concatenate the results so they get numbered Driver 1, 2, 3, …
+    const byBucket = { breakfast: [], lunch: [], dinner: [] };
+    plannable.forEach((o, i) => {
+      byBucket[mealBucket(o.delivery_time)].push(i);
+    });
+    const drivers = [
+      ...clusterStops(plannable, matrix, byBucket.breakfast),
+      ...clusterStops(plannable, matrix, byBucket.lunch),
+      ...clusterStops(plannable, matrix, byBucket.dinner),
+    ];
     const summary = summarize(drivers, plannable, kitchenMilesByIdx);
 
     // Persist the plan so the historical-averages widget and the new-orders
