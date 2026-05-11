@@ -388,26 +388,13 @@ export default function LogisticsPage() {
                   </div>
 
                   {/* Section 3 — Toll Toggle */}
-                  <div className="toll-row" style={{ display: 'flex', gap: 10, marginBottom: 28, flexWrap: 'wrap' }}>
+                  <div className="toll-row" style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
                     <TollButton selected={useTolls}  onClick={() => toggleTolls(true)}  title="With Tolls"  sub="(faster)" />
                     <TollButton selected={!useTolls} onClick={() => toggleTolls(false)} title="No Tolls"    sub="(cheaper)" />
                   </div>
 
-                  {/* Section 4 — Driver Route Cards */}
-                  <div style={{ marginBottom: 28 }}>
-                    {plan.drivers.map((driver, di) => (
-                      <DriverCard
-                        key={di}
-                        driver={driver}
-                        expanded={expanded}
-                        onToggleStop={(si) => toggleStop(di, si)}
-                        driverIdx={di}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Section 5 — Print Driver Sheets + Print Roster */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 36, flexWrap: 'wrap' }}>
+                  {/* Section 4 — Print Roster + Print Driver Sheets (top of routes) */}
+                  <div className="print-row" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
                     <button
                       onClick={printRoster}
                       disabled={rosterBusy || !ordersCount}
@@ -440,6 +427,19 @@ export default function LogisticsPage() {
                     >
                       📄 Print Driver Sheets
                     </button>
+                  </div>
+
+                  {/* Section 5 — Driver Route Cards */}
+                  <div style={{ marginBottom: 36 }}>
+                    {plan.drivers.map((driver, di) => (
+                      <DriverCard
+                        key={di}
+                        driver={driver}
+                        expanded={expanded}
+                        onToggleStop={(si) => toggleStop(di, si)}
+                        driverIdx={di}
+                      />
+                    ))}
                   </div>
                 </>
               )}
@@ -503,6 +503,8 @@ export default function LogisticsPage() {
             .toll-row { flex-direction: column; }
             .toll-row > * { width: 100%; }
             .plan-btn { width: 100%; }
+            .print-row { flex-direction: column; }
+            .print-row > button { width: 100%; }
           }
           @media (max-width: 720px) {
             .summary-grid { grid-template-columns: repeat(2, 1fr) !important; }
