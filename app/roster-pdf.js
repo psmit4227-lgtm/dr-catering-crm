@@ -45,36 +45,100 @@ function fmtDateLong(d) {
   return `${days[dt.getDay()]}, ${months[m - 1]} ${day}, ${y}`;
 }
 
-// Extract "City, ST" from a US address. Handles common shapes:
-//   "30 Prospect Ave, Hackensack NJ 07601"
-//   "2321 US-22, Union, NJ 07083"
-//   "100 Main St, Newark, NJ"
-//   "Hackensack University Medical Center, 30 Prospect Ave, Hackensack, NJ 07601"
-// Falls back to first 25 chars of the original on weird input.
+// Known DR Catering delivery towns. Real-world addresses are messy (doctor
+// names, suite numbers, building names embedded everywhere), so a prefix or
+// right-to-left parser ends up showing garbage. Instead, scan for any known
+// town as a whole word — longest match wins so "Staten Island" beats "Staten",
+// "East Orange" beats "Orange", etc.
+const KNOWN_TOWNS = [
+  // NJ — multi-word first so longest match wins
+  { name: "East Orange",        state: "NJ" },
+  { name: "West Orange",        state: "NJ" },
+  { name: "South Orange",       state: "NJ" },
+  { name: "North Bergen",       state: "NJ" },
+  { name: "Cherry Hill",        state: "NJ" },
+  { name: "Jersey City",        state: "NJ" },
+  { name: "New Brunswick",      state: "NJ" },
+  { name: "Old Bridge",         state: "NJ" },
+  { name: "Brick Township",     state: "NJ" },
+  { name: "Fort Lee",           state: "NJ" },
+  { name: "Englewood Cliffs",   state: "NJ" },
+  { name: "Atlantic City",      state: "NJ" },
+  { name: "Long Branch",        state: "NJ" },
+  { name: "Asbury Park",        state: "NJ" },
+  { name: "Park Ridge",         state: "NJ" },
+  { name: "River Edge",         state: "NJ" },
+  { name: "Cedar Grove",        state: "NJ" },
+  { name: "Wood Ridge",         state: "NJ" },
+
+  // NJ single-word
+  { name: "Hackensack",         state: "NJ" },
+  { name: "Union",              state: "NJ" },
+  { name: "Newark",             state: "NJ" },
+  { name: "Elizabeth",          state: "NJ" },
+  { name: "Clifton",            state: "NJ" },
+  { name: "Paterson",           state: "NJ" },
+  { name: "Passaic",            state: "NJ" },
+  { name: "Ridgewood",          state: "NJ" },
+  { name: "Westfield",          state: "NJ" },
+  { name: "Pennington",         state: "NJ" },
+  { name: "Linden",             state: "NJ" },
+  { name: "Teaneck",            state: "NJ" },
+  { name: "Englewood",          state: "NJ" },
+  { name: "Fairlawn",           state: "NJ" },
+  { name: "Paramus",            state: "NJ" },
+  { name: "Wayne",              state: "NJ" },
+  { name: "Edison",             state: "NJ" },
+  { name: "Woodbridge",         state: "NJ" },
+  { name: "Bayonne",            state: "NJ" },
+  { name: "Hoboken",            state: "NJ" },
+  { name: "Princeton",          state: "NJ" },
+  { name: "Trenton",            state: "NJ" },
+  { name: "Camden",             state: "NJ" },
+  { name: "Morristown",         state: "NJ" },
+  { name: "Summit",             state: "NJ" },
+  { name: "Millburn",           state: "NJ" },
+  { name: "Maplewood",          state: "NJ" },
+  { name: "Montclair",          state: "NJ" },
+  { name: "Bloomfield",         state: "NJ" },
+  { name: "Belleville",         state: "NJ" },
+  { name: "Nutley",             state: "NJ" },
+  { name: "Kearny",             state: "NJ" },
+  { name: "Harrison",           state: "NJ" },
+  { name: "Secaucus",           state: "NJ" },
+  { name: "Lyndhurst",          state: "NJ" },
+  { name: "Rutherford",         state: "NJ" },
+  { name: "Garfield",           state: "NJ" },
+  { name: "Lodi",               state: "NJ" },
+
+  // NY
+  { name: "Staten Island",      state: "NY" },
+  { name: "New York",           state: "NY" },
+  { name: "Manhattan",          state: "NY" },
+  { name: "Brooklyn",           state: "NY" },
+  { name: "Bronx",              state: "NY" },
+  { name: "Queens",             state: "NY" },
+  { name: "Yonkers",            state: "NY" },
+];
+
+// Sorted by name length DESC so multi-word towns ("Staten Island", "East Orange")
+// match before any single-word substring. Computed once at module load.
+const TOWNS_BY_LENGTH = [...KNOWN_TOWNS].sort((a, b) => b.name.length - a.name.length);
+
+function escapeRe(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Scan the address for any known town as a whole word. Returns "City, ST" or
+// "—" when no known town matches (signals "unknown — Dom can write it in").
 function extractCity(address) {
-  const raw = (address || "").trim();
-  if (!raw) return "—";
-
-  const parts = raw.split(",").map(s => s.trim()).filter(Boolean);
-  const stateRe = /^[A-Z]{2}(?:\s+\d{5}(?:-\d{4})?)?$/;
-  const cityStateRe = /^([A-Za-z][A-Za-z\s.'-]*?)\s+([A-Z]{2})(?:\s+\d{5}(?:-\d{4})?)?$/;
-
-  // Walk parts right-to-left looking for the City/State piece(s).
-  for (let i = parts.length - 1; i >= 0; i--) {
-    const p = parts[i];
-    // "Hackensack NJ 07601" → "Hackensack, NJ"
-    const m = p.match(cityStateRe);
-    if (m) return `${m[1].trim()}, ${m[2]}`;
-    // Stand-alone "NJ" or "NJ 07601" — city is the previous segment.
-    if (stateRe.test(p) && i > 0) {
-      const state = p.slice(0, 2);
-      const city = parts[i - 1].trim();
-      if (city) return `${city}, ${state}`;
-    }
+  if (!address) return "—";
+  const upper = String(address).toUpperCase();
+  for (const town of TOWNS_BY_LENGTH) {
+    const pattern = new RegExp("\\b" + escapeRe(town.name.toUpperCase()) + "\\b");
+    if (pattern.test(upper)) return `${town.name}, ${town.state}`;
   }
-
-  // Couldn't parse — show a clipped raw string so Dom still has a hint.
-  return raw.length > 25 ? raw.slice(0, 25) + "…" : raw;
+  return "—";
 }
 
 // Font sizes for a given reduction level. r=0 is the requested start state.
