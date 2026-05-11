@@ -130,15 +130,17 @@ function escapeRe(s) {
 }
 
 // Scan the address for any known town as a whole word. Returns "City, ST" or
-// "—" when no known town matches (signals "unknown — Dom can write it in").
+// an empty string when no known town matches — the renderer just shows a
+// blank cell. A dash was tested first but read as a missing-data warning on
+// the printed sheet; blank is cleaner.
 function extractCity(address) {
-  if (!address) return "—";
+  if (!address) return "";
   const upper = String(address).toUpperCase();
   for (const town of TOWNS_BY_LENGTH) {
     const pattern = new RegExp("\\b" + escapeRe(town.name.toUpperCase()) + "\\b");
     if (pattern.test(upper)) return `${town.name}, ${town.state}`;
   }
-  return "—";
+  return "";
 }
 
 // Font sizes for a given reduction level. r=0 is the requested start state.
