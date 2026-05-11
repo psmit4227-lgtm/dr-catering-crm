@@ -142,17 +142,16 @@ async function kitchenLegMiles(stops, useTolls) {
 }
 
 // Internal meal-bucket classifier (silent — never exposed to UI or PDFs).
-// The kitchen prepares food in waves, so a driver can chain stops within a
-// bucket but never carry breakfast + lunch + dinner together.
-//   Breakfast: time_there <  10:00 AM  (< 600 minutes)
-//   Lunch:     10:00 AM <= time_there <  2:00 PM  (600–839)
-//   Dinner:    time_there >= 2:00 PM   (>= 840)
+// The kitchen preps in two waves: breakfast and lunch. A driver can chain
+// stops within a bucket but never across them. Late-day deliveries (2 PM,
+// 5 PM, …) still count as lunch for routing.
+//   Breakfast: time_there <  10:30 AM  (< 630 minutes)
+//   Lunch:     time_there >= 10:30 AM
 function mealBucket(timeThereStr) {
   const m = timeToMinutes(timeThereStr);
   if (m == null) return 'lunch'; // unreachable after broken-orders validation; default safely
-  if (m < 10 * 60) return 'breakfast';
-  if (m < 14 * 60) return 'lunch';
-  return 'dinner';
+  if (m < 630) return 'breakfast';
+  return 'lunch';
 }
 
 // Greedy clustering for a subset of stop indexes. Same chaining rules as
@@ -334,18 +333,17 @@ export async function POST(request) {
     const kitchenMiles = await kitchenLegMiles(plannable, useTolls);
     const kitchenMilesByIdx = plannable.map((_, i) => kitchenMiles[i]);
 
-    // Internal meal-bucket separation: a driver can chain within breakfast,
-    // lunch, or dinner — but never across buckets. The frontend never sees
-    // the bucket; we just run the existing clustering three times and
-    // concatenate the results so they get numbered Driver 1, 2, 3, …
-    const byBucket = { breakfast: [], lunch: [], dinner: [] };
+    // Internal meal-bucket separation: a driver can chain within breakfast
+    // or within lunch — but never across the two. The frontend never sees
+    // the bucket; we just run the existing clustering twice and concatenate
+    // the results so they get numbered Driver 1, 2, 3, …
+    const byBucket = { breakfast: [], lunch: [] };
     plannable.forEach((o, i) => {
       byBucket[mealBucket(o.delivery_time)].push(i);
     });
     const drivers = [
       ...clusterStops(plannable, matrix, byBucket.breakfast),
       ...clusterStops(plannable, matrix, byBucket.lunch),
-      ...clusterStops(plannable, matrix, byBucket.dinner),
     ];
     const summary = summarize(drivers, plannable, kitchenMilesByIdx);
 
