@@ -670,6 +670,11 @@ export default function OrderForm({ mode = 'new', initialOrder = null, onCancel 
     const insertRes = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderToSave) });
     const insertData = await insertRes.json();
     if (insertData.error) { alert('Error saving: ' + insertData.error); setSaving(false); return; }
+    // Pull the server-assigned per-date sequence onto orderToSave so the
+    // kitchen PDF (and any downstream use) shows the right big number.
+    if (insertData.daily_sequence != null) {
+      orderToSave.daily_sequence = insertData.daily_sequence;
+    }
     let pdfUrl = null;
     try {
       const pdfBase64 = generateOrderPDF(orderToSave);

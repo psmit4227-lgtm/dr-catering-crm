@@ -44,6 +44,12 @@ const guestPt = (bodyPt) => Math.max(20, Math.round(bodyPt * 2.1));
 // actually read it on a stack of printed sheets.
 const guestBreakdownPt = (gpPt) => Math.max(11, Math.round(gpPt * 0.65));
 
+// Big bottom-left number printed on every kitchen PDF — the per-delivery-date
+// sequence number that matches the # column on the Driver Delivery Schedule.
+// 2x the guest-count number so it reads from across the kitchen.
+const dailySeqPt = (bodyPt) => 2 * guestPt(bodyPt);
+const DAILY_SEQ_OFFSET = 12.7;  // ~0.5 inch from left and bottom edges
+
 function formatTime(t) {
   if (!t) return "—";
   const [hStr, mStr] = t.split(":");
@@ -445,6 +451,13 @@ function measureLayout(doc, order, s, sp) {
   h += 1.5 + 2;
   h += lh(s.footer, sp);
 
+  // Reserve vertical space for the big bottom-left sequence number so the
+  // auto-fit shrinks content if needed. The number is drawn at an absolute
+  // position after layout — we just account for the band it occupies.
+  if (order.daily_sequence != null) {
+    h += dailySeqPt(s.body) * PT_TO_MM + 3;
+  }
+
   return h;
 }
 
@@ -637,6 +650,20 @@ function buildPDF(order) {
     `DR Catering — ${order.order_number || ""} — Generated ${today}`,
     CX, y, { align: "center", baseline: "top" }
   );
+
+  // 14. Big per-date sequence number, bottom-left. Anchored absolutely so the
+  // kitchen guys and Dom both see it in the same spot every time, regardless
+  // of how much content sits above. Skipped silently for legacy orders that
+  // have no daily_sequence — empty space is cleaner than a placeholder.
+  if (order.daily_sequence != null) {
+    setFont("bold", dailySeqPt(S.body), BLACK);
+    doc.text(
+      String(order.daily_sequence),
+      DAILY_SEQ_OFFSET,
+      PAGE_H - DAILY_SEQ_OFFSET,
+      { baseline: "bottom" }
+    );
+  }
 
   return doc;
 }

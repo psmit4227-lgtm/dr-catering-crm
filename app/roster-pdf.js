@@ -229,13 +229,19 @@ function buildPDF(orders, date) {
   const rows = orders
     .slice()
     .sort((a, b) => {
-      const at = (a.time_out || "99:99");
-      const bt = (b.time_out || "99:99");
-      return at.localeCompare(bt);
+      // Sort by daily_sequence ascending so the schedule matches the big
+      // number on each kitchen PDF. Orders missing a sequence (legacy rows
+      // that pre-date the migration) fall to the end with an empty # cell.
+      const aSeq = a.daily_sequence ?? Infinity;
+      const bSeq = b.daily_sequence ?? Infinity;
+      if (aSeq !== bSeq) return aSeq - bSeq;
+      // Stable tiebreaker — same sequence shouldn't happen in practice but
+      // keep deterministic ordering by time_out just in case.
+      return (a.time_out || "99:99").localeCompare(b.time_out || "99:99");
     })
     .map(o => [
-      "",                            // # — handwritten
-      "",                            // Driver Name — handwritten
+      o.daily_sequence != null ? String(o.daily_sequence) : "",   // # — pre-filled from DB
+      "",                                                          // Driver Name — handwritten
       extractCity(o.delivery_address),
       fmtTime12(o.time_out),
       fmtTime12(o.delivery_time),
