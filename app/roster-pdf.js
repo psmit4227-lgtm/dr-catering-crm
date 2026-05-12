@@ -3,10 +3,16 @@ import jsPDF from "jspdf";
 const PT_TO_MM  = 0.352778;
 const PAGE_W    = 215.9;          // US Letter, mm
 const PAGE_H    = 279.4;
-const MARGIN    = 12.7;           // 0.5 inch
+// 0.4 inch margins all around. Held constant — auto-fit shrinks font/row
+// height, never the margins (printers can clip closer than this).
+const MARGIN    = 10.16;
 const CW        = PAGE_W - MARGIN * 2;
 const CX        = PAGE_W / 2;
 const USABLE_H  = PAGE_H - MARGIN * 2;
+
+// Cell padding (mm). ~6pt L/R, ~5pt T/B.
+const CELL_PAD_X = 2.1;
+const CELL_PAD_Y = 1.8;
 
 const BLACK     = [15, 18, 20];
 const GRAY      = [120, 120, 120];
@@ -143,39 +149,46 @@ function extractCity(address) {
   return "";
 }
 
-// Font sizes for a given reduction level. r=0 is the requested start state.
-// Min is enforced below.
+// Font sizes for a given reduction level. r=0 is the base / max-size state
+// (small-order sheets fill the page nicely). The auto-fit loop in buildPDF
+// raises r until the page fits — minimums clamp how small things can go.
 function sizesFor(r) {
   return {
-    title:  Math.max(16, 22 - r),
-    sub:    Math.max( 9, 12 - Math.floor(r / 2)),
-    count:  Math.max( 9, 11 - Math.floor(r / 2)),
-    header: Math.max(10, 14 - r),
-    body:   Math.max( 8, 11 - r),
+    title:  Math.max(16, 28 - r),                    // 28 → 16
+    sub:    Math.max(11, 16 - Math.floor(r / 2)),    // 16 → ~11
+    count:  Math.max(10, 13 - Math.floor(r / 2)),    // 13 → ~10
+    header: Math.max(11, 16 - r),                    // 16 → 11
+    body:   Math.max( 9, 14 - r),                    // 14 → 9
   };
 }
 
 // Row heights in mm. # and Driver columns get extra height so there's room
-// for handwriting (~22pt feel ≈ 7.8mm at the start font). Scales gently
-// with reduction so the table still tightens up if needed.
+// for handwriting. Interpolated against body size so it shrinks in lockstep:
+// body 14 → 32pt row, body 9 → 18pt row.
 function rowHeightFor(s) {
-  const writeRow = Math.max(7.5, 22 * PT_TO_MM * (s.body / 11));
-  const normal   = Math.max(5.5, s.body * PT_TO_MM * 1.9);
-  return Math.max(writeRow, normal);
+  const heightPt = 18 + (s.body - 9) * (32 - 18) / (14 - 9);
+  return Math.max(18 * PT_TO_MM, heightPt * PT_TO_MM);
 }
 
 function headerHeightFor(s) {
-  return Math.max(6.5, s.header * PT_TO_MM * 2.0);
+  // Header row matches body row height so the table reads as one block.
+  return rowHeightFor(s);
 }
+
+// Inter-section spacing (mm). Added on top of the line height for each header
+// element so the roster has breathing room at base sizes.
+const GAP_TITLE_TO_SUB    = 3.5;   // ~10pt
+const GAP_SUB_TO_COUNT    = 2.8;   // ~8pt
+const GAP_COUNT_TO_TABLE  = 4.2;   // ~12pt
 
 // Measure total layout height for one page worth of rows at given font sizes.
 function measureLayout(s, rowCount) {
   let h = 0;
-  h += lh(s.title, 1.15) + 2;          // title + gap
-  h += lh(s.sub, 1.15) + 1.5;          // subtitle
-  h += lh(s.count, 1.15) + 4;          // count + gap before table
-  h += headerHeightFor(s);             // table header
-  h += rowHeightFor(s) * rowCount;     // body rows
+  h += lh(s.title, 1.15) + GAP_TITLE_TO_SUB;
+  h += lh(s.sub,   1.15) + GAP_SUB_TO_COUNT;
+  h += lh(s.count, 1.15) + GAP_COUNT_TO_TABLE;
+  h += headerHeightFor(s);
+  h += rowHeightFor(s) * rowCount;
   return h;
 }
 
@@ -202,11 +215,11 @@ function drawRow(doc, cells, y, rowH, s, font, fontSize, fill, drawBorder = true
     if (!text) return;
     const colX = COL_X[i];
     const colW = COL_W[i];
-    const lines = doc.splitTextToSize(String(text), colW - 4);
+    const lines = doc.splitTextToSize(String(text), colW - CELL_PAD_X * 2);
     // Vertically center the text block within the row.
     const blockH = lines.length * fontSize * PT_TO_MM * 1.15;
     const ty = y + (rowH - blockH) / 2 + fontSize * PT_TO_MM * 0.9;
-    doc.text(lines, colX + 2, ty, { baseline: "alphabetic" });
+    doc.text(lines, colX + CELL_PAD_X, ty, { baseline: "alphabetic" });
   });
 }
 
@@ -230,15 +243,17 @@ function buildPDF(orders, date) {
     ]);
 
   // Auto-fit fonts until everything fits the page, or until min sizes are hit.
+  // Range goes up to r=18 so the title (28→16) has room to keep shrinking
+  // after the body has bottomed out at 9pt.
   let reduction = 0;
   let s = sizesFor(0);
-  while (reduction < 12 && measureLayout(s, rows.length) > USABLE_H) {
+  while (reduction < 18 && measureLayout(s, rows.length) > USABLE_H) {
     reduction++;
     s = sizesFor(reduction);
   }
 
   // If even the minimum sizes can't fit, allow page 2. Compute how many rows
-  // fit on page 1, render them, then continue on page 2.
+  // fit on page 1, render them, then continue on page 2 with header repeated.
   const fitsOnePage = measureLayout(s, rows.length) <= USABLE_H;
 
   let y = MARGIN;
@@ -247,19 +262,19 @@ function buildPDF(orders, date) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(s.title);
   doc.setTextColor(...BLACK);
-  doc.text("Daily Delivery Roster", CX, y, { align: "center", baseline: "top" });
-  y += lh(s.title, 1.15) + 2;
+  doc.text("Driver Delivery Schedule", CX, y, { align: "center", baseline: "top" });
+  y += lh(s.title, 1.15) + GAP_TITLE_TO_SUB;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(s.sub);
   doc.setTextColor(...GRAY);
   doc.text(fmtDateLong(date), CX, y, { align: "center", baseline: "top" });
-  y += lh(s.sub, 1.15) + 1.5;
+  y += lh(s.sub, 1.15) + GAP_SUB_TO_COUNT;
 
   doc.setFontSize(s.count);
   const countLine = `${rows.length} stop${rows.length === 1 ? "" : "s"} total`;
   doc.text(countLine, CX, y, { align: "center", baseline: "top" });
-  y += lh(s.count, 1.15) + 4;
+  y += lh(s.count, 1.15) + GAP_COUNT_TO_TABLE;
 
   // ── Table header ──
   const headerH = headerHeightFor(s);

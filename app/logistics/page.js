@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import Navigation from '../components/Navigation';
-import { downloadDriverSheetsPDF } from '../driver-pdf';
 import { downloadRosterPDF } from '../roster-pdf';
 
 const supabase = createClient(
@@ -393,7 +392,7 @@ export default function LogisticsPage() {
                     <TollButton selected={!useTolls} onClick={() => toggleTolls(false)} title="No Tolls"    sub="(cheaper)" />
                   </div>
 
-                  {/* Section 4 — Print Roster + Print Driver Sheets (top of routes) */}
+                  {/* Section 4 — Print Roster (top of routes) */}
                   <div className="print-row" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
                     <button
                       onClick={printRoster}
@@ -411,21 +410,6 @@ export default function LogisticsPage() {
                       }}
                     >
                       {rosterBusy ? 'Generating…' : '🗒️ Print Roster'}
-                    </button>
-                    <button
-                      onClick={() => downloadDriverSheetsPDF(plan, planDate, plan.mockMode)}
-                      style={{
-                        background: NAVY,
-                        color: '#FFFFFF',
-                        border: 'none',
-                        borderRadius: 8,
-                        padding: '12px 22px',
-                        fontSize: 14,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      📄 Print Driver Sheets
                     </button>
                   </div>
 
