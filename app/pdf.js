@@ -20,19 +20,29 @@ const PREP_BG  = [255, 248, 231];        // #fff8e7 — prep note box fill
 const lh = (pt, sp) => pt * PT_TO_MM * sp;
 
 // Sizes as a function of reduction level (reduces 1pt per step, clamped to min)
-const getSizes = (r) => ({
-  title:  Math.max(18, 28 - r),
-  client: Math.max(14, 22 - r),
-  phone:  Math.max(11, Math.round((22 - r) * 0.75)),
-  sect:   Math.max(12, 18 - r),
-  body:   Math.max(10, 16 - r),
-  menu:   Math.max(10, 16 - r),
-  notes:  Math.max(9,  15 - r),
-  label:  Math.max(6,  8  - Math.floor(r / 3)),
-  footer: 7,
-});
+const getSizes = (r) => {
+  const client = Math.max(14, 22 - r);
+  return {
+    title:  Math.max(18, 28 - r),
+    client,
+    // Phone sits under client name. ~65% of client size so it scales in
+    // lockstep through the auto-fit shrink; floor at 11pt so it stays
+    // readable on a print-out at the bottom of the range.
+    phone:  Math.max(11, Math.round(client * 0.65)),
+    sect:   Math.max(12, 18 - r),
+    body:   Math.max(10, 16 - r),
+    menu:   Math.max(10, 16 - r),
+    notes:  Math.max(9,  15 - r),
+    label:  Math.max(6,  8  - Math.floor(r / 3)),
+    footer: 7,
+  };
+};
 
 const guestPt = (bodyPt) => Math.max(20, Math.round(bodyPt * 2.1));
+// Breakdown line under the big guest count number. ~65% of the big-number
+// size, floored at 11pt — black ink, regular weight, so kitchen staff can
+// actually read it on a stack of printed sheets.
+const guestBreakdownPt = (gpPt) => Math.max(11, Math.round(gpPt * 0.65));
 
 function formatTime(t) {
   if (!t) return "—";
@@ -372,10 +382,11 @@ function measureLayout(doc, order, s, sp) {
     h += lh(guestPt(s.body), sp) + 2;
     const bd = formatGuestBreakdown(order);
     if (bd) {
+      const bdSize = guestBreakdownPt(guestPt(s.body));
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(s.notes);
+      doc.setFontSize(bdSize);
       const bdLines = doc.splitTextToSize(bd, CW - 4);
-      h += bdLines.length * lh(s.notes, sp) + 3;
+      h += bdLines.length * lh(bdSize, sp) + 3;
     } else {
       h += 4;
     }
@@ -492,8 +503,9 @@ function buildPDF(order) {
   doc.text(order.client_name || "—", CX, y, { align: "center", baseline: "top" });
   y += lh(S.client, SP) + 1;
 
-  // 4. Phone — bigger and bolder so it's actually readable on a printed page
-  setFont("bold", S.phone);
+  // 4. Phone — sized at ~65% of client name, black ink, regular weight so
+  // kitchen staff can read it cleanly. Bold made it muddy on print.
+  setFont("normal", S.phone, BLACK);
   doc.text(order.client_phone || "—", CX, y, { align: "center", baseline: "top" });
   y += lh(S.phone, SP) + 3;
 
@@ -532,10 +544,13 @@ function buildPDF(order) {
 
     const guestBreakdown = formatGuestBreakdown(order);
     if (guestBreakdown) {
-      setFont("normal", S.notes, GRAY);
+      // ~65% of the big guest-count number, black ink, regular weight (no
+      // italic). Kitchen complained the previous gray italic was unreadable.
+      const bdSize = guestBreakdownPt(GP);
+      setFont("normal", bdSize, BLACK);
       const bdLines = doc.splitTextToSize(guestBreakdown, CW - 4);
       doc.text(bdLines, CX, y, { align: "center", baseline: "top" });
-      y += bdLines.length * lh(S.notes, SP) + 3;
+      y += bdLines.length * lh(bdSize, SP) + 3;
     } else {
       y += 4;
     }
