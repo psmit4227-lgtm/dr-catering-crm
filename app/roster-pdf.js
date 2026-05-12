@@ -190,6 +190,28 @@ function truncate(text, maxLen) {
   return text.length > maxLen ? text.slice(0, maxLen) + "…" : text;
 }
 
+// Strip operator notes / prices / scribbles out of client_name for display on
+// this PDF only (DB, kitchen PDF, order history all keep the raw value).
+// Cuts the name at the first digit, special char (+ $ # % @ *), or stop word
+// — whichever comes first. Roman numerals, suffixes, apostrophes, hyphens,
+// and accented letters aren't in those patterns, so they're preserved.
+// If the cleanup empties the string (the whole name is itself a stop word,
+// e.g. "Party Hosts Inc"), return the raw value so the row doesn't show
+// blank.
+const CLEAN_STOP_RE = new RegExp(
+  "\\d|[+$#%@*]|\\b(?:party|call|note|text|email|pay|price|see|delivery|tax|credit)\\b",
+  "i",
+);
+
+function cleanClientName(raw) {
+  if (!raw) return raw;
+  const match = raw.match(CLEAN_STOP_RE);
+  let cleaned = match ? raw.slice(0, match.index) : raw;
+  // Trim trailing whitespace + dangling commas/periods.
+  cleaned = cleaned.replace(/[\s,.]+$/, "").replace(/^\s+/, "");
+  return cleaned || raw;
+}
+
 // Per-row heights based on actual wrapped line counts. Rows expand to fit
 // content; the floor is the handwriting-friendly minimum from rowHeightFor.
 // Must be called AFTER the doc's font is set (or it sets it itself, since
@@ -276,7 +298,7 @@ function buildPDF(orders, date) {
       extractCity(o.delivery_address),
       fmtTime12(o.time_out),
       fmtTime12(o.delivery_time),
-      truncate(o.client_name || "—", 25),                          // 25-char cap so the cell stays one line
+      truncate(cleanClientName(o.client_name || "—"), 25),         // strip notes/prices, then cap at 25 chars
     ]);
 
   // Auto-fit fonts until everything fits the page, or until min sizes are hit.
