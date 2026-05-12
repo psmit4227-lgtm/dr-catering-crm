@@ -181,14 +181,45 @@ const GAP_TITLE_TO_SUB    = 3.5;   // ~10pt
 const GAP_SUB_TO_COUNT    = 2.8;   // ~8pt
 const GAP_COUNT_TO_TABLE  = 4.2;   // ~12pt
 
-// Measure total layout height for one page worth of rows at given font sizes.
-function measureLayout(s, rowCount) {
+// Truncate a string to maxLen characters, adding "…" when it overflows.
+// Applied to client_name only on this PDF — the kitchen PDF still shows the
+// full name. Without this, long names wrap and the row border slices across
+// the wrapped text as a strikethrough.
+function truncate(text, maxLen) {
+  if (!text) return text;
+  return text.length > maxLen ? text.slice(0, maxLen) + "…" : text;
+}
+
+// Per-row heights based on actual wrapped line counts. Rows expand to fit
+// content; the floor is the handwriting-friendly minimum from rowHeightFor.
+// Must be called AFTER the doc's font is set (or it sets it itself, since
+// splitTextToSize measures at the current font size).
+function computeRowHeights(doc, rows, s) {
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(s.body);
+  const minH = rowHeightFor(s);
+  const lineH = s.body * PT_TO_MM * 1.15;
+  return rows.map(cells => {
+    let maxLines = 1;
+    for (let i = 0; i < cells.length; i++) {
+      const text = cells[i];
+      if (!text) continue;
+      const wrapped = doc.splitTextToSize(String(text), COL_W[i] - CELL_PAD_X * 2);
+      if (wrapped.length > maxLines) maxLines = wrapped.length;
+    }
+    const contentH = maxLines * lineH + CELL_PAD_Y * 2;
+    return Math.max(minH, contentH);
+  });
+}
+
+// Measure total layout height using actual per-row heights.
+function measureLayout(s, rowHeights) {
   let h = 0;
   h += lh(s.title, 1.15) + GAP_TITLE_TO_SUB;
   h += lh(s.sub,   1.15) + GAP_SUB_TO_COUNT;
   h += lh(s.count, 1.15) + GAP_COUNT_TO_TABLE;
   h += headerHeightFor(s);
-  h += rowHeightFor(s) * rowCount;
+  for (const rh of rowHeights) h += rh;
   return h;
 }
 
@@ -245,22 +276,26 @@ function buildPDF(orders, date) {
       extractCity(o.delivery_address),
       fmtTime12(o.time_out),
       fmtTime12(o.delivery_time),
-      o.client_name || "—",
+      truncate(o.client_name || "—", 25),                          // 25-char cap so the cell stays one line
     ]);
 
   // Auto-fit fonts until everything fits the page, or until min sizes are hit.
+  // Row heights are recomputed each iteration because the wrap-line-count
+  // for any cell depends on font size and column width.
   // Range goes up to r=18 so the title (28→16) has room to keep shrinking
   // after the body has bottomed out at 9pt.
   let reduction = 0;
   let s = sizesFor(0);
-  while (reduction < 18 && measureLayout(s, rows.length) > USABLE_H) {
+  let rowHeights = computeRowHeights(doc, rows, s);
+  while (reduction < 18 && measureLayout(s, rowHeights) > USABLE_H) {
     reduction++;
     s = sizesFor(reduction);
+    rowHeights = computeRowHeights(doc, rows, s);
   }
 
   // If even the minimum sizes can't fit, allow page 2. Compute how many rows
   // fit on page 1, render them, then continue on page 2 with header repeated.
-  const fitsOnePage = measureLayout(s, rows.length) <= USABLE_H;
+  const fitsOnePage = measureLayout(s, rowHeights) <= USABLE_H;
 
   let y = MARGIN;
 
@@ -288,20 +323,21 @@ function buildPDF(orders, date) {
   y += headerH;
 
   // ── Body rows ──
-  const rowH = rowHeightFor(s);
-  let rowIdx = 0;
-  for (const cells of rows) {
+  // Each row carries its own height (computed from the actual wrapped line
+  // count of its tallest cell) so borders always sit flush at the bottom of
+  // the content — no more strikethrough on long names or city strings.
+  for (let i = 0; i < rows.length; i++) {
+    const rh = rowHeights[i];
     // Page break if we'd overflow the page (only relevant when fitsOnePage === false).
-    if (!fitsOnePage && y + rowH > PAGE_H - MARGIN) {
+    if (!fitsOnePage && y + rh > PAGE_H - MARGIN) {
       doc.addPage();
       y = MARGIN;
       drawRow(doc, COL_HDRS, y, headerH, s, "bold", s.header, HDR_BG);
       y += headerH;
     }
-    const fill = (rowIdx % 2 === 1) ? ALT_BG : null;
-    drawRow(doc, cells, y, rowH, s, "normal", s.body, fill);
-    y += rowH;
-    rowIdx++;
+    const fill = (i % 2 === 1) ? ALT_BG : null;
+    drawRow(doc, rows[i], y, rh, s, "normal", s.body, fill);
+    y += rh;
   }
 
   return doc;
