@@ -51,100 +51,72 @@ function fmtDateLong(d) {
   return `${days[dt.getDay()]}, ${months[m - 1]} ${day}, ${y}`;
 }
 
-// Known DR Catering delivery towns. Real-world addresses are messy (doctor
-// names, suite numbers, building names embedded everywhere), so a prefix or
-// right-to-left parser ends up showing garbage. Instead, scan for any known
-// town as a whole word — longest match wins so "Staten Island" beats "Staten",
-// "East Orange" beats "Orange", etc.
-const KNOWN_TOWNS = [
-  // NJ — multi-word first so longest match wins
-  { name: "East Orange",        state: "NJ" },
-  { name: "West Orange",        state: "NJ" },
-  { name: "South Orange",       state: "NJ" },
-  { name: "North Bergen",       state: "NJ" },
-  { name: "Cherry Hill",        state: "NJ" },
-  { name: "Jersey City",        state: "NJ" },
-  { name: "New Brunswick",      state: "NJ" },
-  { name: "Old Bridge",         state: "NJ" },
-  { name: "Brick Township",     state: "NJ" },
-  { name: "Fort Lee",           state: "NJ" },
-  { name: "Englewood Cliffs",   state: "NJ" },
-  { name: "Atlantic City",      state: "NJ" },
-  { name: "Long Branch",        state: "NJ" },
-  { name: "Asbury Park",        state: "NJ" },
-  { name: "Park Ridge",         state: "NJ" },
-  { name: "River Edge",         state: "NJ" },
-  { name: "Cedar Grove",        state: "NJ" },
-  { name: "Wood Ridge",         state: "NJ" },
+// Structural city parser. The town is whatever word(s) sit right before
+// "NJ" / "NY" (or spelled-out forms) in the address. Walking backward from
+// the state, we collect up to 3 town words, stopping on a street suffix,
+// unit identifier, single letter, or digit-only token. No maintained list —
+// new delivery towns just work without code changes.
 
-  // NJ single-word
-  { name: "Hackensack",         state: "NJ" },
-  { name: "Union",              state: "NJ" },
-  { name: "Newark",             state: "NJ" },
-  { name: "Elizabeth",          state: "NJ" },
-  { name: "Clifton",            state: "NJ" },
-  { name: "Paterson",           state: "NJ" },
-  { name: "Passaic",            state: "NJ" },
-  { name: "Ridgewood",          state: "NJ" },
-  { name: "Westfield",          state: "NJ" },
-  { name: "Pennington",         state: "NJ" },
-  { name: "Linden",             state: "NJ" },
-  { name: "Teaneck",            state: "NJ" },
-  { name: "Englewood",          state: "NJ" },
-  { name: "Fairlawn",           state: "NJ" },
-  { name: "Paramus",            state: "NJ" },
-  { name: "Wayne",              state: "NJ" },
-  { name: "Edison",             state: "NJ" },
-  { name: "Woodbridge",         state: "NJ" },
-  { name: "Bayonne",            state: "NJ" },
-  { name: "Hoboken",            state: "NJ" },
-  { name: "Princeton",          state: "NJ" },
-  { name: "Trenton",            state: "NJ" },
-  { name: "Camden",             state: "NJ" },
-  { name: "Morristown",         state: "NJ" },
-  { name: "Summit",             state: "NJ" },
-  { name: "Millburn",           state: "NJ" },
-  { name: "Maplewood",          state: "NJ" },
-  { name: "Montclair",          state: "NJ" },
-  { name: "Bloomfield",         state: "NJ" },
-  { name: "Belleville",         state: "NJ" },
-  { name: "Nutley",             state: "NJ" },
-  { name: "Kearny",             state: "NJ" },
-  { name: "Harrison",           state: "NJ" },
-  { name: "Secaucus",           state: "NJ" },
-  { name: "Lyndhurst",          state: "NJ" },
-  { name: "Rutherford",         state: "NJ" },
-  { name: "Garfield",           state: "NJ" },
-  { name: "Lodi",               state: "NJ" },
+const STREET_SUFFIXES = new Set([
+  "ave", "avenue", "st", "street", "rd", "road", "blvd", "boulevard",
+  "dr", "drive", "ln", "lane", "pl", "place", "way", "ct", "court",
+  "plaza", "pkwy", "parkway", "hwy", "highway", "trail", "path", "route",
+  "ter", "terrace", "cir", "circle", "sq", "square",
+  "suite", "site", "unit", "apt", "floor", "building", "bldg",
+  "wing", "north", "south", "east", "west", "n", "s", "e", "w",
+]);
 
-  // NY
-  { name: "Staten Island",      state: "NY" },
-  { name: "New York",           state: "NY" },
-  { name: "Manhattan",          state: "NY" },
-  { name: "Brooklyn",           state: "NY" },
-  { name: "Bronx",              state: "NY" },
-  { name: "Queens",             state: "NY" },
-  { name: "Yonkers",            state: "NY" },
-];
-
-// Sorted by name length DESC so multi-word towns ("Staten Island", "East Orange")
-// match before any single-word substring. Computed once at module load.
-const TOWNS_BY_LENGTH = [...KNOWN_TOWNS].sort((a, b) => b.name.length - a.name.length);
-
-function escapeRe(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// A token isn't part of the town if it's empty, all digits (route numbers,
+// suite numbers like "440"), a single letter (suite "B"), or a known street
+// suffix / unit identifier. Trailing punctuation stripped before checking.
+function isJunkToken(word) {
+  if (!word) return true;
+  const cleaned = word.replace(/[.,]/g, "").toLowerCase();
+  if (!cleaned) return true;
+  if (/^\d+$/.test(cleaned)) return true;
+  if (cleaned.length === 1) return true;
+  return STREET_SUFFIXES.has(cleaned);
 }
 
-// Scan the address for any known town as a whole word. Returns "City, ST" or
-// an empty string when no known town matches — the renderer just shows a
-// blank cell. A dash was tested first but read as a missing-data warning on
-// the printed sheet; blank is cleaner.
+function titleCase(s) {
+  return s
+    .split(" ")
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
+// Most specific patterns first so "New Jersey" beats the bare "NJ" inside it
+// (not strictly necessary given the engine's leftmost search, but clearer).
+// Separator is `[,\s]+` rather than `\s+` so "tomsriver,nj" (no space after
+// the comma) still parses — that comes up when sales guys type fast.
+const STATE_PATTERNS = [
+  { re: /([\w\s\-']+?)[,\s]+New Jersey\b/i, state: "NJ" },
+  { re: /([\w\s\-']+?)[,\s]+New York\b/i,   state: "NY" },
+  { re: /([\w\s\-']+?)[,\s]+NJ\b/i,         state: "NJ" },
+  { re: /([\w\s\-']+?)[,\s]+NY\b/i,         state: "NY" },
+];
+
 function extractCity(address) {
-  if (!address) return "";
-  const upper = String(address).toUpperCase();
-  for (const town of TOWNS_BY_LENGTH) {
-    const pattern = new RegExp("\\b" + escapeRe(town.name.toUpperCase()) + "\\b");
-    if (pattern.test(upper)) return `${town.name}, ${town.state}`;
+  if (!address || typeof address !== "string") return "";
+  for (const { re, state } of STATE_PATTERNS) {
+    const match = address.match(re);
+    if (!match || !match[1]) continue;
+
+    const parts = match[1].split(/[\s,]+/).filter(Boolean);
+    if (parts.length === 0) continue;
+
+    // Walk backward from the end. First non-junk run of up to 3 words is
+    // the town. Stops as soon as we hit a street suffix / unit / single
+    // letter / digit-only token.
+    const townWords = [];
+    for (let i = parts.length - 1; i >= 0 && townWords.length < 3; i--) {
+      if (isJunkToken(parts[i])) break;
+      townWords.unshift(parts[i]);
+    }
+    if (townWords.length === 0) continue;
+
+    return `${titleCase(townWords.join(" "))}, ${state}`;
   }
   return "";
 }
