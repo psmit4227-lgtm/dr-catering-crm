@@ -51,74 +51,134 @@ function fmtDateLong(d) {
   return `${days[dt.getDay()]}, ${months[m - 1]} ${day}, ${y}`;
 }
 
-// Structural city parser. The town is whatever word(s) sit right before
-// "NJ" / "NY" (or spelled-out forms) in the address. Walking backward from
-// the state, we collect up to 3 town words, stopping on a street suffix,
-// unit identifier, single letter, or digit-only token. No maintained list —
-// new delivery towns just work without code changes.
+// Structural city parser. The town is the word(s) right before the state
+// name in the address. Supports all 50 states + DC, abbreviation or spelled
+// out. No maintained town list — new delivery cities just work.
+//
+// Why pick the LATEST state mention instead of the earliest: addresses like
+// "1600 Pennsylvania Ave NW Washington DC" contain a state-name as a street
+// (Pennsylvania Ave). Latest wins so we resolve to DC, not PA.
 
+const US_STATES = {
+  "AL": "AL", "ALABAMA": "AL",
+  "AK": "AK", "ALASKA": "AK",
+  "AZ": "AZ", "ARIZONA": "AZ",
+  "AR": "AR", "ARKANSAS": "AR",
+  "CA": "CA", "CALIFORNIA": "CA",
+  "CO": "CO", "COLORADO": "CO",
+  "CT": "CT", "CONNECTICUT": "CT",
+  "DE": "DE", "DELAWARE": "DE",
+  "FL": "FL", "FLORIDA": "FL",
+  "GA": "GA", "GEORGIA": "GA",
+  "HI": "HI", "HAWAII": "HI",
+  "ID": "ID", "IDAHO": "ID",
+  "IL": "IL", "ILLINOIS": "IL",
+  "IN": "IN", "INDIANA": "IN",
+  "IA": "IA", "IOWA": "IA",
+  "KS": "KS", "KANSAS": "KS",
+  "KY": "KY", "KENTUCKY": "KY",
+  "LA": "LA", "LOUISIANA": "LA",
+  "ME": "ME", "MAINE": "ME",
+  "MD": "MD", "MARYLAND": "MD",
+  "MA": "MA", "MASSACHUSETTS": "MA",
+  "MI": "MI", "MICHIGAN": "MI",
+  "MN": "MN", "MINNESOTA": "MN",
+  "MS": "MS", "MISSISSIPPI": "MS",
+  "MO": "MO", "MISSOURI": "MO",
+  "MT": "MT", "MONTANA": "MT",
+  "NE": "NE", "NEBRASKA": "NE",
+  "NV": "NV", "NEVADA": "NV",
+  "NH": "NH", "NEW HAMPSHIRE": "NH",
+  "NJ": "NJ", "NEW JERSEY": "NJ",
+  "NM": "NM", "NEW MEXICO": "NM",
+  "NY": "NY", "NEW YORK": "NY",
+  "NC": "NC", "NORTH CAROLINA": "NC",
+  "ND": "ND", "NORTH DAKOTA": "ND",
+  "OH": "OH", "OHIO": "OH",
+  "OK": "OK", "OKLAHOMA": "OK",
+  "OR": "OR", "OREGON": "OR",
+  "PA": "PA", "PENNSYLVANIA": "PA",
+  "RI": "RI", "RHODE ISLAND": "RI",
+  "SC": "SC", "SOUTH CAROLINA": "SC",
+  "SD": "SD", "SOUTH DAKOTA": "SD",
+  "TN": "TN", "TENNESSEE": "TN",
+  "TX": "TX", "TEXAS": "TX",
+  "UT": "UT", "UTAH": "UT",
+  "VT": "VT", "VERMONT": "VT",
+  "VA": "VA", "VIRGINIA": "VA",
+  "WA": "WA", "WASHINGTON": "WA",
+  "WV": "WV", "WEST VIRGINIA": "WV",
+  "WI": "WI", "WISCONSIN": "WI",
+  "WY": "WY", "WYOMING": "WY",
+  "DC": "DC", "DISTRICT OF COLUMBIA": "DC",
+};
+
+// Tokens that shouldn't be the start of a town name. The compass-direction
+// abbreviations (N/S/E/W/NE/NW/SE/SW) are here so "NW Washington" → "Washington".
 const STREET_SUFFIXES = new Set([
-  "ave", "avenue", "st", "street", "rd", "road", "blvd", "boulevard",
-  "dr", "drive", "ln", "lane", "pl", "place", "way", "ct", "court",
-  "plaza", "pkwy", "parkway", "hwy", "highway", "trail", "path", "route",
-  "ter", "terrace", "cir", "circle", "sq", "square",
-  "suite", "site", "unit", "apt", "floor", "building", "bldg",
-  "wing", "north", "south", "east", "west", "n", "s", "e", "w",
+  "AVE", "AVENUE", "ST", "STREET", "RD", "ROAD", "BLVD", "BOULEVARD",
+  "DR", "DRIVE", "LN", "LANE", "PL", "PLACE", "WAY", "CT", "COURT",
+  "PLAZA", "PKWY", "PARKWAY", "HWY", "HIGHWAY", "TRAIL", "PATH",
+  "SUITE", "SITE", "UNIT", "APT", "FLOOR", "BUILDING", "BLDG",
+  "WING", "NORTH", "SOUTH", "EAST", "WEST", "N", "S", "E", "W",
+  "NE", "NW", "SE", "SW",
+  "ROUTE", "RTE", "TURNPIKE", "TPKE", "EXPRESSWAY", "EXPY",
+  "CIRCLE", "CIR", "TERRACE", "TER", "SQUARE", "SQ",
 ]);
 
-// A token isn't part of the town if it's empty, all digits (route numbers,
-// suite numbers like "440"), a single letter (suite "B"), or a known street
-// suffix / unit identifier. Trailing punctuation stripped before checking.
-function isJunkToken(word) {
-  if (!word) return true;
-  const cleaned = word.replace(/[.,]/g, "").toLowerCase();
-  if (!cleaned) return true;
-  if (/^\d+$/.test(cleaned)) return true;
-  if (cleaned.length === 1) return true;
-  return STREET_SUFFIXES.has(cleaned);
-}
-
-function titleCase(s) {
-  return s
-    .split(" ")
-    .filter(Boolean)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(" ");
-}
-
-// Most specific patterns first so "New Jersey" beats the bare "NJ" inside it
-// (not strictly necessary given the engine's leftmost search, but clearer).
-// Separator is `[,\s]+` rather than `\s+` so "tomsriver,nj" (no space after
-// the comma) still parses — that comes up when sales guys type fast.
-const STATE_PATTERNS = [
-  { re: /([\w\s\-']+?)[,\s]+New Jersey\b/i, state: "NJ" },
-  { re: /([\w\s\-']+?)[,\s]+New York\b/i,   state: "NY" },
-  { re: /([\w\s\-']+?)[,\s]+NJ\b/i,         state: "NJ" },
-  { re: /([\w\s\-']+?)[,\s]+NY\b/i,         state: "NY" },
-];
+// State keys sorted by length DESC so multi-word names ("NEW JERSEY") win
+// over "NJ" if both happen to match in the same iteration. Computed once.
+const STATE_KEYS_BY_LENGTH = Object.keys(US_STATES).sort((a, b) => b.length - a.length);
 
 function extractCity(address) {
   if (!address || typeof address !== "string") return "";
-  for (const { re, state } of STATE_PATTERNS) {
-    const match = address.match(re);
-    if (!match || !match[1]) continue;
+  const upper = address.toUpperCase();
 
-    const parts = match[1].split(/[\s,]+/).filter(Boolean);
-    if (parts.length === 0) continue;
-
-    // Walk backward from the end. First non-junk run of up to 3 words is
-    // the town. Stops as soon as we hit a street suffix / unit / single
-    // letter / digit-only token.
-    const townWords = [];
-    for (let i = parts.length - 1; i >= 0 && townWords.length < 3; i--) {
-      if (isJunkToken(parts[i])) break;
-      townWords.unshift(parts[i]);
+  // Find the LATEST state mention in the address. Walking through every
+  // state key and taking the max index across all matches.
+  let best = null;
+  for (const key of STATE_KEYS_BY_LENGTH) {
+    const re = new RegExp(
+      "(?:^|[\\s,])" + key.replace(/\s+/g, "\\s+") + "(?=[\\s,]|$|\\s*\\d)",
+      "gi",
+    );
+    let m;
+    while ((m = re.exec(upper)) !== null) {
+      if (!best || m.index > best.index) {
+        best = { index: m.index, abbr: US_STATES[key] };
+      }
+      // Guard against zero-width pathology — exec on the same lastIndex would loop.
+      if (m.index === re.lastIndex) re.lastIndex++;
     }
-    if (townWords.length === 0) continue;
-
-    return `${titleCase(townWords.join(" "))}, ${state}`;
   }
-  return "";
+
+  if (!best) return "";
+
+  // Everything before the matched separator is the prefix. Trim trailing
+  // whitespace/commas and split into words.
+  const before = address.substring(0, best.index).trim();
+  if (!before) return "";
+
+  const words = before
+    .split(/[\s,]+/)
+    .map(w => w.replace(/[.,]+$/, ""))
+    .filter(Boolean);
+  if (words.length === 0) return "";
+
+  // Multi-word towns ("Toms River", "Los Angeles", "Staten Island") need the
+  // last 2; if the first of those is a street suffix or compass direction,
+  // drop it so single-word towns ("Newark", "Brooklyn") come out clean.
+  let townWords = words.slice(-2);
+  if (STREET_SUFFIXES.has(townWords[0].toUpperCase())) {
+    townWords = townWords.slice(-1);
+  }
+
+  const town = townWords
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+  if (!town) return "";
+
+  return `${town}, ${best.abbr}`;
 }
 
 // Font sizes for a given reduction level. r=0 is the base / max-size state
