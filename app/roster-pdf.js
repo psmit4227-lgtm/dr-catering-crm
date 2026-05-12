@@ -367,7 +367,7 @@ function buildPDF(orders, date) {
   y += lh(s.sub, 1.15) + GAP_SUB_TO_COUNT;
 
   doc.setFontSize(s.count);
-  const countLine = `${rows.length} stop${rows.length === 1 ? "" : "s"} total`;
+  const countLine = `${rows.length} route${rows.length === 1 ? "" : "s"} total`;
   doc.text(countLine, CX, y, { align: "center", baseline: "top" });
   y += lh(s.count, 1.15) + GAP_COUNT_TO_TABLE;
 
